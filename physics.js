@@ -46,6 +46,11 @@ export class AirPhysics {
         const n=ns[i],r=.16+.46*n.pressure;
         if(n.p.y<r){n.p.y=r;n.old.x=T.MathUtils.lerp(n.old.x,n.p.x,.2);n.old.z=T.MathUtils.lerp(n.old.z,n.p.z,.2);}
       }
+      // Nonadjacent tube sections retain a finite thickness when crumpled.
+      for(let i=3;i<=24;i++)for(let j=1;j<i-3;j++){
+        const a=ns[j],b=ns[i],min=.26+.38*Math.min(a.pressure,b.pressure);
+        if(a.p.distanceToSquared(b.p)<min*min)this.solveDistance(a,b,min,.65,j<2);
+      }
     }
     const shoulder=this.sample(3.677);
     for(const arm of this.arms){
@@ -67,7 +72,9 @@ export class AirPhysics {
     }
   }
   sample(y){const k=clamp((y-.64)/4.9*24,0,24),i=Math.min(23,Math.floor(k)),s=k-i,a=this.nodes[i],b=this.nodes[i+1];
-    const tangent=b.p.clone().sub(a.p).normalize(),q=new T.Quaternion().setFromUnitVectors(UP,tangent);
+    const ta=this.nodes[Math.min(24,i+1)].p.clone().sub(this.nodes[Math.max(0,i-1)].p).normalize();
+    const tb=this.nodes[Math.min(24,i+2)].p.clone().sub(this.nodes[i].p).normalize();
+    const tangent=ta.lerp(tb,s).normalize(),q=new T.Quaternion().setFromUnitVectors(UP,tangent);
     const c=a.p.clone().lerp(b.p,s);if(y>5.54)c.addScaledVector(tangent,y-5.54);
     return {c,n:SIDE.clone().applyQuaternion(q),b:new T.Vector3(0,0,1).applyQuaternion(q),t:tangent,p:T.MathUtils.lerp(a.pressure,b.pressure,s)};
   }
