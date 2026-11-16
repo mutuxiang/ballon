@@ -1,33 +1,24 @@
 # 充气打工人 · Air Worker
 
-光滑、短胖的充气上班族：深色中分头发、桃肤色脸与圆手、浅蓝衬衫、白领口、深灰领带、藏蓝裤身，搭配半眯眼、弯鼻子、嘟嘴表情。
+短胖的充气上班族，保留无打光色块、短手臂和慵懒表情。
 
-## 三种状态
+## 实时模拟
+预览通过 physics.js 的固定 120 Hz 位置约束求解器计算动作：25 个身体节点、两条独立手臂、重力、惯性阻尼、送风推力、随压力变化的弯曲刚度、底部到顶部的压力传输、折弯压力损失、地面接触。相关随机扰动使摆动不再固定循环。
 
-- 没气：身体扁塌躺平，手臂软垂，静止休息。
-- 气少：身体半鼓起、弯腰垂手，缓慢摆动。
-- 气多：身体饱满站立，活跃摇摆、鼓胀与回弹。
+三种状态直接改变送风量。切换不重置位置或速度：没气逐渐软塌，气少支撑较弱，气多恢复鼓胀并摆动。暂停和调速对所有状态有效，底部进度条显示顶部压力。
 
-预览中可直接切换状态，下载按钮跟随当前状态。运动状态为 8 秒循环、64 个形态采样，底座固定；头发、表情与衣服随身体变形。动作是程序化变形模拟，不是布料或流体物理解算。
+这是为交互效果设计的简化弹性杆和气压模型，参数为视觉调校，尚未用实物数据标定，不是完整流固耦合或布料求解。极端折叠仍可能自交。
 
-## 文件
+## 交付
+- model.mjs：角色几何；预览使用 rest 模式生成静止网格，旧曲线代码仅保留供历史参考。
+- physics.js：实时动力学与网格变形。
+- toon.js：不受灯光影响的色块和细描边。
+- public/air-dancer.glb、air-dancer-low.glb：分别为气多、气少模拟的 6 秒动作采样（不是无缝循环，也不携带实时求解器）。
+- public/air-dancer-none.glb：关风后稳定下来的姿态。
+- dist/：已构建的预览；GLB 使用 KHR_materials_unlit。
 
-- `public/air-dancer.glb`：气多，动画 `Air_high_Loop`。
-- `public/air-dancer-low.glb`：气少，动画 `Air_low_Loop`。
-- `public/air-dancer-none.glb`：没气，静态塌陷模型。
-- `model.mjs`：建模、状态与动作源码。
-- `toon.js`：无光照色块和细描边。
-- `dist/`：已构建预览，无外部 CDN、字体或图片依赖。
+## 运行
+npm install 后运行 npm run dev。npm run model 重新采样并导出三个 GLB，npm run build 构建预览。node physics.test.mjs 检查状态切换连续性、关风落地、重新充气与稳定性。
 
-三个 GLB 均为 Y 轴向上、单位米，使用 KHR_materials_unlit 保存不受灯光影响的色块。预览也采用无光照材质，没有定向灯、高光条、明暗条纹或投影；细描边由预览额外绘制。可导入 Blender 等支持 glTF 的软件。
-
-## 使用
-
-安装 Node.js 后，双击 `start-preview.cmd`，或运行 `node preview.cjs` 并打开 http://127.0.0.1:5187/ 。请通过本地 HTTP 服务访问，不要直接双击 dist/index.html。
-
-开发：`npm install` → `npm run dev`。
-重新生成模型：`npm run model`。
-构建预览：`npm run build`。
-
-预览支持旋转、缩放、暂停与调速。没气状态静止，暂停与调速控件会禁用。
+已安装 Node.js 可双击 start-preview.cmd，或 node preview.cjs 后打开 http://127.0.0.1:5187/ 。使用本地 HTTP 服务访问，不能直接双击 dist/index.html。
 

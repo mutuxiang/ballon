@@ -4,7 +4,7 @@ export const DURATION = 8;
 const FRAMES = 64;
 const HEIGHT = 4.9;
 const HEIGHT_SCALE = HEIGHT / 7.6;
-export function createDancer({state='high'}={}) {
+export function createDancer({state='high',rest=false}={}) {
   if(!['none','low','high'].includes(state))throw new Error('Unknown air state: '+state);
   const empty=state==='none',low=state==='low';
   const group = new THREE.Group(); group.name = 'Air_Dancer';
@@ -31,6 +31,7 @@ export function createDancer({state='high'}={}) {
   }
   const poses=[];
   function pressure(t,u) {
+    if(rest)return 1;
     const p=t/FRAMES*Math.PI*2;
     if(empty)return 1;
     if(low)return .91+.035*Math.sin(p-u*3);
@@ -61,6 +62,7 @@ export function createDancer({state='high'}={}) {
     poses.push({points,angles,depths});
   }
   function frame(y,t) {
+    if(rest)return {c:new THREE.Vector3(0,.64+(y-.64)*HEIGHT_SCALE,0),n:new THREE.Vector3(1,0,0),b:new THREE.Vector3(0,0,1),t:new THREE.Vector3(0,1,0),a:0};
     const p=poses[t], k=THREE.MathUtils.clamp((y-.64)/7.6*100,0,100), i=Math.min(99,Math.floor(k)), s=k-i;
     const a=THREE.MathUtils.lerp(p.angles[i],p.angles[i+1],s);
     const b=THREE.MathUtils.lerp(p.depths[i],p.depths[i+1],s);
@@ -83,6 +85,7 @@ export function createDancer({state='high'}={}) {
     },true);
   }
   function arm(sign,u,t) {
+    if(rest)return new THREE.Vector3(sign*(.5+u*1.04),.64+(5.35-.64)*HEIGHT_SCALE,0);
     const phase=t/FRAMES*Math.PI*2, f=frame(5.35,t);
     if(empty)return f.c.addScaledVector(f.b,sign*(.4+u*.78)).addScaledVector(f.t,u*.34).addScaledVector(f.n,.025*Math.sin(u*3));
     const x=sign*((low?.4:.5)+u*1.04),dy=low?-.62*u+.15*Math.sin(phase-u*3+sign)*u:.12*u+Math.sin(phase*3-u*2.3+sign*.8)*.42*u+Math.sin(phase*2+sign*.7-u*.8)*.37*u*u;
@@ -160,15 +163,16 @@ export function createDancer({state='high'}={}) {
     function positions(f){return new Float32Array(vertices.flatMap(fn=>fn(f).toArray()));}
     geo.setAttribute('position',new THREE.BufferAttribute(positions(0),3)); normals(geo);
     geo.morphAttributes.position=[]; geo.morphAttributes.normal=[];
-    for(let f=0;!empty&&f<FRAMES;f++) {
+    for(let f=0;!rest&&!empty&&f<FRAMES;f++) {
       const g=new THREE.BufferGeometry();g.setIndex(indices[m]);g.setAttribute('position',new THREE.BufferAttribute(positions(f),3));normals(g);
       geo.morphAttributes.position.push(g.attributes.position);geo.morphAttributes.normal.push(g.attributes.normal);
     }
+    if(rest||empty)geo.morphAttributes={};
     const mesh=new THREE.Mesh(geo,materials[m]);mesh.name=meshNames[m];mesh.castShadow=![1,2].includes(m);mesh.frustumCulled=false;
-    if(!empty)mesh.morphTargetInfluences[FRAMES/2]=1;
+    if(!rest&&!empty)mesh.morphTargetInfluences[FRAMES/2]=1;
     group.add(mesh);
     const values=[];for(let f=0;f<=FRAMES;f++)for(let k=0;k<FRAMES;k++)values.push(k===(f+FRAMES/2)%FRAMES?1:0);
-    if(!empty)tracks.push(new THREE.NumberKeyframeTrack(mesh.name+'.morphTargetInfluences',times,values));
+    if(!rest&&!empty)tracks.push(new THREE.NumberKeyframeTrack(mesh.name+'.morphTargetInfluences',times,values));
   });
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.74,.64,48),materials[2]);base.position.y=.32;base.name='Blower';group.add(base);
   const rim=new THREE.Mesh(new THREE.TorusGeometry(.655,.035,8,48),new THREE.MeshBasicMaterial({color:0x7d898b}));rim.rotation.x=Math.PI/2;rim.position.y=.62;group.add(rim);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {createDancer} from './model.mjs';
+import {AirPhysics} from './physics.js';
 import {OutlineEffect} from 'three/addons/effects/OutlineEffect.js';
 import {applyToon} from './toon.js';
 
@@ -30,7 +31,9 @@ const states={
   low:{file:'air-dancer-low.glb',description:'勉强撑着。半鼓起的身体，慢慢晃两下。',status:'气少 · 勉强营业'},
   high:{file:'air-dancer.glb',description:'气已充满。身体饱满，短手跟着一起摇摆。',status:'气多 · 摇摆营业'}
 };
-const cache=new Map(),loader=new GLTFLoader();
+const character=createDancer({rest:true}).group;
+applyToon(character);scene.add(character);
+const simulation=new AirPhysics(character,{seed:Date.now()>>>0});
 const buttons=[...document.querySelectorAll('[data-air]')];
 const play=document.querySelector('#play'),speedInput=document.querySelector('#speed');
 const description=document.querySelector('#state-description'),status=document.querySelector('#motion-status');
@@ -44,25 +47,13 @@ async function selectState(id){
   description.textContent='正在切换充气状态…';
   document.querySelector('#error').textContent='';
   try{
-    let entry=cache.get(id);
-    if(!entry){
-      const gltf=await loader.loadAsync('./'+states[id].file+'?v=flat-states-5');
-      applyToon(gltf.scene);
-      gltf.scene.traverse(o=>{if(o.isMesh)o.frustumCulled=false;});
-      const mixer=new THREE.AnimationMixer(gltf.scene),action=gltf.animations.length?mixer.clipAction(gltf.animations[0]):null;
-      entry={root:gltf.scene,mixer,action,clip:gltf.animations[0]};
-      cache.set(id,entry);
-    }
-    if(current)scene.remove(current.root);
-    current=entry;active=id;
-    current.action?.reset().play();current.mixer.update(0);
-    scene.add(current.root);
+    active=id;current=character;simulation.setState(id);
     for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.air===id));
     description.textContent=states[id].description;status.textContent=states[id].status;
     document.querySelector('.download').href='./'+states[id].file;
-    play.disabled=id==='none';speedInput.disabled=id==='none';
+    play.disabled=false;speedInput.disabled=false;
     document.querySelector('#loading')?.remove();
-    window.dancer={scene:current.root,mixer:current.mixer,action:current.action,clip:current.clip,state:id};
+    window.dancer={scene:character,simulation,state:id};
   }catch(error){
     document.querySelector('#error').textContent='模型加载失败，请再次点击状态按钮重试。';
     description.textContent='切换失败，请重试。';console.error(error);
@@ -80,8 +71,8 @@ addEventListener('resize',resize);resize();
 selectState('high');
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
-  if(current&&playing&&active!=='none')current.mixer.update(dt*speed);
+  if(current&&playing)simulation.update(dt*speed);
   controls.update();effect.render(scene,camera);
-  document.querySelector('#progress').style.width=current&&active!=='none'?(current.action.time/current.clip.duration*100)+'%':'0%';
+  document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
