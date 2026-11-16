@@ -5,7 +5,11 @@ globalThis.FileReader=class {
   readAsArrayBuffer(blob){blob.arrayBuffer().then(v=>{this.result=v;this.onloadend?.();});}
   readAsDataURL(blob){blob.arrayBuffer().then(v=>{this.result='data:'+blob.type+';base64,'+Buffer.from(v).toString('base64');this.onloadend?.();});}
 };
-const {group,clip}=createDancer();
-const output=await new GLTFExporter().parseAsync(group,{binary:true,animations:[clip]});
-await mkdir('public',{recursive:true});await writeFile('public/air-dancer.glb',Buffer.from(output));
-console.log('Exported animated GLB:',output.byteLength,'bytes');
+await mkdir('public',{recursive:true});
+for(const state of ['high','low','none']){
+  const {group,clip}=createDancer({state});
+  const output=await new GLTFExporter().parseAsync(group,{binary:true,animations:state==='none'?[]:[clip]});
+  const filename=state==='high'?'air-dancer.glb':'air-dancer-'+state+'.glb';
+  await writeFile('public/'+filename,Buffer.from(output));
+  console.log('Exported',state,output.byteLength,'bytes');
+}

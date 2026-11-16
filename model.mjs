@@ -4,7 +4,9 @@ export const DURATION = 8;
 const FRAMES = 64;
 const HEIGHT = 4.9;
 const HEIGHT_SCALE = HEIGHT / 7.6;
-export function createDancer() {
+export function createDancer({state='high'}={}) {
+  if(!['none','low','high'].includes(state))throw new Error('Unknown air state: '+state);
+  const empty=state==='none',low=state==='low';
   const group = new THREE.Group(); group.name = 'Air_Dancer';
   const shirt = new THREE.MeshPhysicalMaterial({color:0xc4d8e5, roughness:.32, metalness:0, clearcoat:.28, clearcoatRoughness:.26, side:THREE.DoubleSide});
   const white = new THREE.MeshStandardMaterial({color:0xfff9ec,roughness:.55,side:THREE.DoubleSide});
@@ -13,6 +15,7 @@ export function createDancer() {
   const hair=new THREE.MeshPhysicalMaterial({color:0x343532,roughness:.45,clearcoat:.12,side:THREE.DoubleSide});
   const trousers=new THREE.MeshPhysicalMaterial({color:0x344659,roughness:.38,clearcoat:.18,side:THREE.DoubleSide});
   const materials=[shirt,white,black,skin,hair,trousers];
+  for(let i=0;i<materials.length;i++)materials[i]=new THREE.MeshBasicMaterial({color:materials[i].color,side:THREE.DoubleSide});
   const meshNames=['Shirt','White_details','Face_ink','Skin','Hair','Trousers'];
   const buckets = materials.map(()=>[]);
   const indices = materials.map(()=>[]);
@@ -29,6 +32,8 @@ export function createDancer() {
   const poses=[];
   function pressure(t,u) {
     const p=t/FRAMES*Math.PI*2;
+    if(empty)return 1;
+    if(low)return .91+.035*Math.sin(p-u*3);
     return 1+.065*Math.sin(p*3-u*3)-.035*Math.sin(p*2-u*4);
   }
   function radius(y,t) {
@@ -44,9 +49,11 @@ export function createDancer() {
       // Air pushes up from the fixed base. Broad folds travel upwards;
       // the upper body lags, overshoots, and springs upright on the next pulse.
       const fold=THREE.MathUtils.smoothstep(u,.22,.85);
-      const a=w*(.57*Math.sin(phase*2-u*3.4)+.28*Math.sin(phase*3-u*5.2)+1.55*leftFold*fold-1.6*rightFold*fold+.13*Math.sin(phase*6-u*8)*u);
-      const b=w*.21*Math.sin(phase*2-u*3.1);
-      const stretch=1+.045*Math.sin(phase*3-u*3)-.07*(leftFold+rightFold)*Math.exp(-Math.pow((u-.6)/.25,2));
+      let a=w*(.45*Math.sin(phase*2-u*3.4)+.20*Math.sin(phase*3-u*5.2)+.8*leftFold*fold-.85*rightFold*fold+.1*Math.sin(phase*6-u*8)*u);
+      let b=w*.16*Math.sin(phase*2-u*3.1);
+      let stretch=1+.045*Math.sin(phase*3-u*3)-.04*(leftFold+rightFold)*Math.exp(-Math.pow((u-.6)/.25,2));
+      if(low){a=w*(.9+.36*Math.sin(phase-u*2.8)+.62*fold+.1*Math.sin(phase*2-u*4)*u);b=w*.1*Math.sin(phase-u*2);stretch=.68+.025*Math.sin(phase-u*3);}
+      if(empty){a=THREE.MathUtils.smoothstep(u,0,.12)*(1.58+.18*Math.sin(u*Math.PI));b=.035*Math.sin(u*6);stretch=.63;}
       angles.push(a);depths.push(b);
       const tangent=new THREE.Vector3(Math.sin(a)*Math.cos(b),Math.cos(a)*Math.cos(b),Math.sin(b));
       points.push(points[i-1].clone().addScaledVector(tangent,HEIGHT/100*stretch));
@@ -63,7 +70,11 @@ export function createDancer() {
     if(y>8.24)c.addScaledVector(tangent,(y-8.24)*HEIGHT_SCALE);
     return {c,n,b:binormal,t:tangent,a};
   }
-  function body(x,y,z,t){const f=frame(y,t);return f.c.addScaledVector(f.n,x).addScaledVector(f.b,z);}
+  function body(x,y,z,t){
+    const f=frame(y,t),u=THREE.MathUtils.clamp((y-.64)/7.6,0,1),w=THREE.MathUtils.smoothstep(u,0,.16);
+    const squash=empty?1-.78*w:low?1-.22*w:1;
+    return f.c.addScaledVector(f.n,x*squash).addScaledVector(f.b,z*(empty?1-.1*w:1));
+  }
   // Smooth inflated tube: broad volume changes, no small fabric corrugations.
   for(const [mat,lo,hi,segments] of [[5,.64,2.25,20],[0,2.25,5.65,36],[3,5.65,8.24,28]]) {
     surface(mat,segments,48,(u,v,t)=>{
@@ -73,7 +84,8 @@ export function createDancer() {
   }
   function arm(sign,u,t) {
     const phase=t/FRAMES*Math.PI*2, f=frame(5.35,t);
-    const x=sign*(.5+u*1.04),dy=.12*u+Math.sin(phase*3-u*2.3+sign*.8)*.42*u+Math.sin(phase*2+sign*.7-u*.8)*.37*u*u;
+    if(empty)return f.c.addScaledVector(f.b,sign*(.4+u*.78)).addScaledVector(f.t,u*.34).addScaledVector(f.n,.025*Math.sin(u*3));
+    const x=sign*((low?.4:.5)+u*1.04),dy=low?-.62*u+.15*Math.sin(phase-u*3+sign)*u:.12*u+Math.sin(phase*3-u*2.3+sign*.8)*.42*u+Math.sin(phase*2+sign*.7-u*.8)*.37*u*u;
     return f.c.addScaledVector(f.n,x).addScaledVector(f.t,dy).addScaledVector(f.b,.17*Math.sin(u*3-phase*3+sign)*u);
   }
   for(const sign of [-1,1]) {
@@ -82,14 +94,20 @@ export function createDancer() {
       const c=arm(sign,u,t), tangent=arm(sign,Math.min(1,u+.001),t).sub(arm(sign,Math.max(0,u-.001),t)).normalize();
       const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(), b=tangent.clone().cross(n),a=v*Math.PI*2;
       const r=(.235-.065*u)*pressure(t,u*.5+.45);
-      return c.addScaledVector(n,Math.cos(a)*r).addScaledVector(b,Math.sin(a)*r);
+      const p=c.clone().addScaledVector(n,Math.cos(a)*r).addScaledVector(b,Math.sin(a)*r);
+      if(empty)p.y=c.y+(p.y-c.y)*.22;
+      if(low)p.y=Math.max(.06,p.y);
+      return p;
     },true);
     // Closed rounded mittens make the short exposed hands look inflated.
     surface(3,12,24,(u,v,t)=>{
       const c=arm(sign,1,t),tangent=c.clone().sub(arm(sign,.999,t)).normalize();
       const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(),b=tangent.clone().cross(n);
       const a=v*Math.PI*2,phi=u*Math.PI/2,r=.17*pressure(t,.95);
-      return c.addScaledVector(tangent,Math.sin(phi)*r).addScaledVector(n,Math.cos(a)*Math.cos(phi)*r).addScaledVector(b,Math.sin(a)*Math.cos(phi)*r);
+      const p=c.clone().addScaledVector(tangent,Math.sin(phi)*r).addScaledVector(n,Math.cos(a)*Math.cos(phi)*r).addScaledVector(b,Math.sin(a)*Math.cos(phi)*r);
+      if(empty)p.y=c.y+(p.y-c.y)*.22;
+      if(low)p.y=Math.max(.06,p.y);
+      return p;
     },true);
   }
   // A closed dark crown with the reference's center-part hairline.
@@ -142,20 +160,20 @@ export function createDancer() {
     function positions(f){return new Float32Array(vertices.flatMap(fn=>fn(f).toArray()));}
     geo.setAttribute('position',new THREE.BufferAttribute(positions(0),3)); normals(geo);
     geo.morphAttributes.position=[]; geo.morphAttributes.normal=[];
-    for(let f=0;f<FRAMES;f++) {
+    for(let f=0;!empty&&f<FRAMES;f++) {
       const g=new THREE.BufferGeometry();g.setIndex(indices[m]);g.setAttribute('position',new THREE.BufferAttribute(positions(f),3));normals(g);
       geo.morphAttributes.position.push(g.attributes.position);geo.morphAttributes.normal.push(g.attributes.normal);
     }
     const mesh=new THREE.Mesh(geo,materials[m]);mesh.name=meshNames[m];mesh.castShadow=![1,2].includes(m);mesh.frustumCulled=false;
-    mesh.morphTargetInfluences[FRAMES/2]=1;
+    if(!empty)mesh.morphTargetInfluences[FRAMES/2]=1;
     group.add(mesh);
     const values=[];for(let f=0;f<=FRAMES;f++)for(let k=0;k<FRAMES;k++)values.push(k===(f+FRAMES/2)%FRAMES?1:0);
-    tracks.push(new THREE.NumberKeyframeTrack(mesh.name+'.morphTargetInfluences',times,values));
+    if(!empty)tracks.push(new THREE.NumberKeyframeTrack(mesh.name+'.morphTargetInfluences',times,values));
   });
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.74,.64,48),black);base.position.y=.32;base.name='Blower';base.castShadow=true;group.add(base);
-  const rim=new THREE.Mesh(new THREE.TorusGeometry(.655,.035,8,48),new THREE.MeshStandardMaterial({color:0x7d898b,metalness:.7,roughness:.35}));rim.rotation.x=Math.PI/2;rim.position.y=.62;group.add(rim);
-  for(let i=0;i<12;i++){const vent=new THREE.Mesh(new THREE.BoxGeometry(.045,.27,.015),new THREE.MeshStandardMaterial({color:0x080f13}));const a=i/12*Math.PI*2;vent.position.set(Math.sin(a)*.71,.26,Math.cos(a)*.71);vent.rotation.y=a;group.add(vent);}
-  const clip=new THREE.AnimationClip('Inflate_Sway_Fold_Loop',DURATION,tracks);
-  group.userData={description:'Compact inflatable tired office worker: dark hair, peach face and hands, blue shirt, white collar, dark tie and navy trousers; pressure-pulse and floppy rebound loop',units:'meters',animationSeconds:DURATION};
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.74,.64,48),materials[2]);base.position.y=.32;base.name='Blower';group.add(base);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(.655,.035,8,48),new THREE.MeshBasicMaterial({color:0x7d898b}));rim.rotation.x=Math.PI/2;rim.position.y=.62;group.add(rim);
+  for(let i=0;i<12;i++){const vent=new THREE.Mesh(new THREE.BoxGeometry(.045,.27,.015),new THREE.MeshBasicMaterial({color:0x080f13}));const a=i/12*Math.PI*2;vent.position.set(Math.sin(a)*.71,.26,Math.cos(a)*.71);vent.rotation.y=a;group.add(vent);}
+  const clip=new THREE.AnimationClip('Air_'+state+'_Loop',DURATION,tracks);
+  group.userData={description:'Inflatable tired office worker with flat unlit colors',airState:state,units:'meters',animationSeconds:DURATION};
   return {group,clip};
 }
