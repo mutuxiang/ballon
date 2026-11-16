@@ -15,6 +15,15 @@ export class AirPhysics {
   update(dt){this.acc+=Math.min(dt,.1);while(this.acc>=1/120){this.step(1/120);this.acc-=1/120;}this.deform();}
   solveDistance(a,b,length,strength=1,fixed=false){const d=b.p.clone().sub(a.p),len=d.length();if(len<1e-7)return;d.multiplyScalar((len-length)/len*strength);if(fixed)b.p.sub(d);else{a.p.addScaledVector(d,.5);b.p.addScaledVector(d,-.5);}}
   integrate(n,force,h){const v=n.p.clone().sub(n.old).multiplyScalar(.993);n.old.copy(n.p);n.p.add(v).addScaledVector(force,h*h);}
+  bodyRadius(n){return .36+.31*n.pressure;}
+  // Capsule contact, including the space between solver nodes.
+  repelSegment(node,a,b,radius){
+    const ab=b.p.clone().sub(a.p),t=clamp(node.p.clone().sub(a.p).dot(ab)/Math.max(ab.lengthSq(),1e-9),0,1);
+    const closest=a.p.clone().addScaledVector(ab,t),d=node.p.clone().sub(closest),len=d.length();
+    if(len>=radius)return;
+    if(len<1e-8)d.set(1,0,0);else d.multiplyScalar(1/len);
+    node.p.addScaledVector(d,radius-len);
+  }
   step(h){
     this.time+=h;
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
@@ -40,16 +49,19 @@ export class AirPhysics {
       for(let i=2;i<24;i++){
         const p=ns[i].pressure;
         // A pressurized tube resists curvature; a depressurized one folds.
-        this.solveDistance(ns[i-1],ns[i+1],4.9/12,.018+.65*p*p,i===2);
+        this.solveDistance(ns[i-1],ns[i+1],4.9/12,.09+.65*p*p,i===2);
+        const minSpan=2*(4.9/24)*Math.cos(.17);
+        if(ns[i-1].p.distanceTo(ns[i+1].p)<minSpan)this.solveDistance(ns[i-1],ns[i+1],minSpan,.9,i===2);
       }
       for(let i=2;i<=24;i++){
-        const n=ns[i],r=.16+.46*n.pressure;
+        const n=ns[i],r=this.bodyRadius(n);
         if(n.p.y<r){n.p.y=r;n.old.x=T.MathUtils.lerp(n.old.x,n.p.x,.2);n.old.z=T.MathUtils.lerp(n.old.z,n.p.z,.2);}
       }
       // Nonadjacent tube sections retain a finite thickness when crumpled.
-      for(let i=3;i<=24;i++)for(let j=1;j<i-3;j++){
-        const a=ns[j],b=ns[i],min=.26+.38*Math.min(a.pressure,b.pressure);
-        if(a.p.distanceToSquared(b.p)<min*min)this.solveDistance(a,b,min,.65,j<2);
+      for(let i=3;i<=24;i++)for(let j=0;j<i-2;j++){
+        const a=ns[j],b=ns[i],min=this.bodyRadius(a)+this.bodyRadius(b)+.035;
+        if((i-j)*4.9/24<min*1.15)continue;
+        this.repelSegment(b,a,ns[j+1],min);
       }
     }
     const shoulder=this.sample(3.677);
@@ -67,8 +79,19 @@ export class AirPhysics {
         arr[0].p.copy(anchor);
         for(let i=1;i<arr.length;i++)this.solveDistance(arr[i-1],arr[i],1.04/6,1,i===1);
         for(let i=1;i<arr.length-1;i++)this.solveDistance(arr[i-1],arr[i+1],1.04/3,.03+.15*arr[i].pressure,i===1);
-        for(let i=1;i<arr.length;i++)arr[i].p.y=Math.max(.09,arr[i].p.y);
+        for(let i=1;i<arr.length;i++){
+          const n=arr[i],r=.12+.12*n.pressure;
+          for(let j=0;j<24;j++){
+            if(i<2&&j>=13&&j<=16)continue;
+            this.repelSegment(n,ns[j],ns[j+1],this.bodyRadius(ns[j])+r+.035);
+          }
+          n.p.y=Math.max(r,n.p.y);
+        }
       }
+    }
+    for(let pass=0;pass<3;pass++)for(let i=2;i<7;i++)for(let j=1;j<6;j++){
+      this.repelSegment(this.arms[0].nodes[i],this.arms[1].nodes[j],this.arms[1].nodes[j+1],.28+.2*shoulder.p);
+      this.repelSegment(this.arms[1].nodes[i],this.arms[0].nodes[j],this.arms[0].nodes[j+1],.28+.2*shoulder.p);
     }
   }
   sample(y){const k=clamp((y-.64)/4.9*24,0,24),i=Math.min(23,Math.floor(k)),s=k-i,a=this.nodes[i],b=this.nodes[i+1];
