@@ -95,7 +95,7 @@ export function createDancer({state='high',rest=false}={}) {
     for(const [mat,lo,hi] of [[0,0,.43],[3,.43,1]])surface(mat,20,24,(s,v,t)=>{
       const u=THREE.MathUtils.lerp(lo,hi,s);
       const c=arm(sign,u,t), tangent=arm(sign,Math.min(1,u+.001),t).sub(arm(sign,Math.max(0,u-.001),t)).normalize();
-      const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(), b=tangent.clone().cross(n),a=v*Math.PI*2;
+      const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(), b=tangent.clone().cross(n),a=-v*Math.PI*2;
       const r=(.235-.065*u)*pressure(t,u*.5+.45);
       const p=c.clone().addScaledVector(n,Math.cos(a)*r).addScaledVector(b,Math.sin(a)*r);
       if(empty)p.y=c.y+(p.y-c.y)*.22;
@@ -106,7 +106,7 @@ export function createDancer({state='high',rest=false}={}) {
     surface(3,12,24,(u,v,t)=>{
       const c=arm(sign,1,t),tangent=c.clone().sub(arm(sign,.999,t)).normalize();
       const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(),b=tangent.clone().cross(n);
-      const a=v*Math.PI*2,phi=u*Math.PI/2,r=.17*pressure(t,.95);
+      const a=-v*Math.PI*2,phi=u*Math.PI/2,r=.17*pressure(t,.95);
       const p=c.clone().addScaledVector(tangent,Math.sin(phi)*r).addScaledVector(n,Math.cos(a)*Math.cos(phi)*r).addScaledVector(b,Math.sin(a)*Math.cos(phi)*r);
       if(empty)p.y=c.y+(p.y-c.y)*.22;
       if(low)p.y=Math.max(.06,p.y);
@@ -120,7 +120,7 @@ export function createDancer({state='high',rest=false}={}) {
     return body(Math.cos(a)*r,y,Math.sin(a)*r,t);
   },true);
   surface(4,16,64,(u,v,t)=>{
-    const a=v*Math.PI*2,phi=u*Math.PI/2,r=(radius(8.24,t)+.014)*Math.sin(phi),y=8.24+.26/HEIGHT_SCALE*Math.cos(phi);
+    const a=-v*Math.PI*2,phi=u*Math.PI/2,r=(radius(8.24,t)+.014)*Math.sin(phi),y=8.24+.26/HEIGHT_SCALE*Math.cos(phi);
     return body(Math.cos(a)*r,y,Math.sin(a)*r,t);
   },true);
   function decal(x,y,t,offset=.025){const r=radius(y,t);return body(x,y,Math.sqrt(Math.max(.01,r*r-x*x))+offset,t);}
@@ -181,3 +181,4 @@ export function createDancer({state='high',rest=false}={}) {
   group.userData={description:'Inflatable tired office worker with flat unlit colors',airState:state,units:'meters',animationSeconds:DURATION};
   return {group,clip};
 }
+
