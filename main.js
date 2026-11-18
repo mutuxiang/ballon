@@ -4,6 +4,13 @@ import {createDancer} from './model.mjs';
 import {AirPhysics} from './physics.js';
 import {SilhouetteEffect} from './silhouette.js';
 import {applyToon} from './toon.js';
+import {createSkins,SKINS} from './skins.js';
+import {createClothing,OUTFITS} from './clothing.js';
+import {createComicHatching} from './comic.js';
+import {createSkinGradient} from './skin-gradient.js';
+import {createMotionExpressions} from './motion-expressions.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import './skins.css';
 
 const stage=document.querySelector('#stage');
 const scene=new THREE.Scene();
@@ -29,10 +36,85 @@ const states={
   low:{file:'air-dancer-low.glb',description:'勉强撑着。半鼓起的身体，慢慢晃两下。',status:'气少 · 勉强营业'},
   high:{file:'air-dancer.glb',description:'气已充满。身体饱满，短手跟着一起摇摆。',status:'气多 · 摇摆营业'}
 };
-const character=createDancer({rest:true}).group;
+const character=createDancer({rest:true,separateFace:true}).group;
 applyToon(character);scene.add(character);
+const skins=createSkins(character);
+const skinGradient=createSkinGradient(character,skins);
+const comic=createComicHatching(scene,camera);
+const clothing=createClothing(character,{onPaletteChange:palette=>{
+  skins.setPalette(palette);
+  document.documentElement.style.setProperty('--skin-tone',palette.skinColor);
+  document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
+}});
 const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0});
+const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
+outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
+document.querySelector('#air-states').append(outfitPanel);
+for(const outfit of OUTFITS){
+  const button=document.createElement('button');button.type='button';button.dataset.outfit=outfit.id;button.title=outfit.note;button.textContent=outfit.name;
+  const swatches=document.createElement('span');swatches.className='outfit-swatches';swatches.setAttribute('aria-hidden','true');
+  for(const color of outfit.swatches){const dot=document.createElement('i');dot.style.backgroundColor=color;swatches.append(dot);}button.append(swatches);
+  button.onclick=()=>selectOutfit(outfit.id);outfitPanel.querySelector('.outfit-buttons').append(button);
+}
+function selectOutfit(id){
+  if(!clothing.select(id))return;
+  comic.setEnabled(id==='comic');
+  skinGradient.setEnabled(id==='gradient');
+  for(const button of outfitPanel.querySelectorAll('[data-outfit]'))button.setAttribute('aria-pressed',String(button.dataset.outfit===id));
+  try{localStorage.setItem('air-worker-outfit',id);}catch{}
+}
+let savedOutfit;try{savedOutfit=localStorage.getItem('air-worker-outfit');}catch{}
+selectOutfit(OUTFITS.some(outfit=>outfit.id===savedOutfit)?savedOutfit:'plain');
+const skinPanel=document.createElement('section');skinPanel.className='skin-picker';skinPanel.setAttribute('aria-label','表情皮肤');
+skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>原版 + ${SKINS.length-1} 款参考表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换，不使用原版表情；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
+document.querySelector('#air-states').append(skinPanel);
+const skinGrid=skinPanel.querySelector('.skin-grid');
+const motionExpressions=createMotionExpressions((id,reason)=>applySkin(id,reason));
+let manualSkinId=SKINS[0].id;
+SKINS.forEach((skin,index)=>{
+  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=(index===0?'项目原版':'参考图 '+index)+' · '+skin.note;
+  const image=document.createElement('img');image.src=skins.thumbnail(index);image.alt='';image.width=76;image.height=76;
+  const label=document.createElement('span');label.textContent=skin.name;button.append(image,label);
+  button.onclick=()=>selectSkin(skin.id);skinGrid.append(button);
+});
+function applySkin(id,reason=''){
+  if(!skins.select(id))return false;
+  for(const button of skinGrid.children)button.setAttribute('aria-pressed',String(button.dataset.skin===id));
+  document.querySelector('#skin-description').textContent=(reason?reason+' · ':'')+SKINS.find(s=>s.id===id).note;
+  return true;
+}
+function setExpressionMode(mode,{remember=true}={}){
+  if(!['manual','motion'].includes(mode))return false;
+  motionExpressions.setEnabled(mode==='motion',simulation);
+  for(const button of skinPanel.querySelectorAll('[data-expression-mode]'))button.setAttribute('aria-pressed',String(button.dataset.expressionMode===mode));
+  if(mode==='manual')applySkin(manualSkinId);
+  if(remember)try{localStorage.setItem('air-worker-expression-mode',mode);}catch{}
+  return true;
+}
+function selectSkin(id){
+  if(!SKINS.some(s=>s.id===id))return;
+  manualSkinId=id;setExpressionMode('manual');
+  try{localStorage.setItem('air-worker-skin',id);}catch{/* Storage may be disabled. */}
+}
+for(const button of skinPanel.querySelectorAll('[data-expression-mode]'))button.onclick=()=>setExpressionMode(button.dataset.expressionMode);
+let savedSkin,savedExpressionMode;try{savedSkin=localStorage.getItem('air-worker-skin');savedExpressionMode=localStorage.getItem('air-worker-expression-mode');}catch{}
+manualSkinId=SKINS.some(s=>s.id===savedSkin)?savedSkin:SKINS[0].id;
+applySkin(manualSkinId);setExpressionMode(savedExpressionMode==='motion'?'motion':'manual',{remember:false});
+const download=document.querySelector('.download');
+download.textContent='下载当前皮肤模型 ↗';download.title='导出当前表情、衣服与姿态；背景漫画线是页面动态效果，不包含在 GLB 中';
+download.addEventListener('click',async event=>{
+  event.preventDefault();if(download.getAttribute('aria-busy')==='true')return;
+  download.setAttribute('aria-busy','true');download.textContent='正在导出…';
+  try{
+    const exportSkin=skins.active,exportOutfit=clothing.active,exportState=active;
+    const buffer=await new GLTFExporter().parseAsync(character,{binary:true});
+    const url=URL.createObjectURL(new Blob([buffer],{type:'model/gltf-binary'}));
+    const link=document.createElement('a');link.href=url;link.download='air-worker-'+exportSkin+'-'+exportOutfit+'-'+exportState+'.glb';link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }catch(error){document.querySelector('#error').textContent='模型导出失败，请重试。';console.error(error);}
+  finally{download.removeAttribute('aria-busy');download.textContent='下载当前皮肤模型 ↗';}
+});
 const buttons=[...document.querySelectorAll('[data-air]')];
 const play=document.querySelector('#play'),speedInput=document.querySelector('#speed');
 const description=document.querySelector('#state-description'),status=document.querySelector('#motion-status');
@@ -52,7 +134,7 @@ async function selectState(id){
     document.querySelector('.download').href='./'+states[id].file;
     play.disabled=false;speedInput.disabled=false;
     document.querySelector('#loading')?.remove();
-    window.dancer={scene:character,simulation,state:id};
+    window.dancer={scene:character,simulation,state:id,skins,selectSkin,clothing,selectOutfit,comic,skinGradient,motionExpressions,setExpressionMode};
   }catch(error){
     document.querySelector('#error').textContent='模型加载失败，请再次点击状态按钮重试。';
     description.textContent='切换失败，请重试。';console.error(error);
@@ -71,7 +153,9 @@ selectState('high');
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
   if(current&&playing)simulation.update(dt*speed);
-  controls.update();effect.render(scene,camera);
+  motionExpressions.update(playing?dt*speed:0,simulation);
+  skinGradient.update(simulation);
+  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
