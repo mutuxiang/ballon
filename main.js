@@ -189,3 +189,6 @@ renderer.setAnimationLoop(()=>{
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
+
+import {mountSelfie} from './selfie.js';
+const selfie=mountSelfie({character,simulation,skins,skinGradient,setExpressionMode});
