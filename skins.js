@@ -147,6 +147,8 @@ export function createSkins(character) {
   const material=new THREE.MeshBasicMaterial({map:textures[0],transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   material.userData.outlineParameters={visible:false};
   const mesh=new THREE.Mesh(geo,material);mesh.name='Expression_print';mesh.frustumCulled=false;mesh.renderOrder=2;character.add(mesh);
+  const focusTexture=new THREE.TextureLoader().load('./focus-expression.png');focusTexture.colorSpace=THREE.SRGBColorSpace;focusTexture.anisotropy=4;focusTexture.repeat.set(.85,.65);focusTexture.offset.set(.075,.19);
+  let focused=false;
   let active=SKINS[0].id;
   function redraw(){
     // Let the real skin underneath supply the gradient through eyelids/nose;
@@ -156,13 +158,14 @@ export function createSkins(character) {
   }
   return {
     get active(){return active;},
+    setFocus(value){if(focused===Boolean(value))return;focused=Boolean(value);this.select(active);},
     setPalette(next){
       if(next.skinColor===palette.skinColor&&next.noseColor===palette.noseColor)return;
       palette={...next};
       redraw();
     },
     setSurfaceGradient(value){const next=Boolean(value);if(next===surfaceGradient)return;surfaceGradient=next;redraw();},
-    select(id){const index=SKINS.findIndex(s=>s.id===id);if(index<0)return false;material.map=textures[index];mesh.visible=id!=='original';for(const name of ['Original_face_ink','Original_face_white'])character.getObjectByName(name).visible=id==='original';active=id;character.userData.skin=id;return true;},
+    select(id){const index=SKINS.findIndex(s=>s.id===id);if(index<0)return false;material.map=focused?focusTexture:textures[index];mesh.visible=focused||id!=='original';for(const name of ['Original_face_ink','Original_face_white'])character.getObjectByName(name).visible=!focused&&id==='original';active=id;character.userData.skin=id;return true;},
     thumbnail(index){return textures[index].image.toDataURL('image/png');}
   };
 }

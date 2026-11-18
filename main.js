@@ -159,8 +159,9 @@ function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=M
 addEventListener('resize',resize);resize();
 selectState('high');
 const mangaMotion=createMangaMotion(camera);
-const auraTexture=new THREE.TextureLoader().load('./worker-super-aura.png');auraTexture.colorSpace=THREE.SRGBColorSpace;
-const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTexture,transparent:true,depthWrite:false}));aura.scale.set(2.8,1.87,1);aura.visible=false;scene.add(aura);
+const focusMaterial=new THREE.SpriteMaterial({transparent:true,depthWrite:false});
+const focusSprite=new THREE.Sprite(focusMaterial);focusSprite.visible=false;scene.add(focusSprite);
+new THREE.TextureLoader().load('./focus-ink-surround.png',texture=>{texture.colorSpace=THREE.SRGBColorSpace;focusMaterial.map=texture;focusMaterial.needsUpdate=true;focusSprite.scale.set(4.8*texture.image.width/texture.image.height,4.8,1);});
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
@@ -176,11 +177,11 @@ renderer.setAnimationLoop(()=>{
   if(current&&playing)simulation.update(dt*speed);
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
-  skinGradient.update(simulation);
-  aura.visible=Boolean(simulation.superMode);const auraFrame=simulation.sample(5.35);aura.position.copy(auraFrame.c).addScaledVector(auraFrame.t,.4);aura.position.z-=.3;
+  skinGradient.update(simulation);skins.setFocus(simulation.superMode);
+  focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(4.4);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
-  comic.setEnabled(simulation.mangaTransition>0&&moving&&head.p.y>.5);
+  comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&head.p.y>.5);
   controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
