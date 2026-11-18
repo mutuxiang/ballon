@@ -67,7 +67,7 @@ for(const outfit of OUTFITS){
 function selectOutfit(id){
   if(!clothing.select(id))return;
   comic.setEnabled(id==='comic');
-  skinGradient.setEnabled(id==='gradient');
+  skinGradient.setEnabled(true);
   for(const button of outfitPanel.querySelectorAll('[data-outfit]'))button.setAttribute('aria-pressed',String(button.dataset.outfit===id));
   try{localStorage.setItem('air-worker-outfit',id);}catch{}
 }
@@ -161,7 +161,7 @@ const mangaMotion=createMangaMotion(camera);
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
-  window.desktopPet.onAction(({type,value})=>{if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.onAction(({type,value})=>{if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   let dragging=false;
   renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
@@ -172,7 +172,9 @@ renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
   if(current&&playing)simulation.update(dt*speed);
   motionExpressions.update(playing?dt*speed:0,simulation);
+  pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);
+  comic.setEnabled(simulation.superMode||simulation.nodes[24].p.y<4.9);
   controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });

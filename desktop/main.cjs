@@ -1,7 +1,7 @@
 const {app,BrowserWindow,ipcMain,Menu,screen}=require('electron');
 const path=require('node:path');
 const {uIOhook,UiohookKey}=require('uiohook-napi');
-let pedalEnabled=true;
+let pedalEnabled=true,focusBounds=null;
 let win,options={skins:[],outfits:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
@@ -12,6 +12,9 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
+  uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusBounds){endFocus();send('focus-end');}});
+  function endFocus(){if(!focusBounds)return;win.setBounds(focusBounds);focusBounds=null;}
+  ipcMain.on('pet:focus',(_e,active)=>{if(active&&!focusBounds){focusBounds=win.getBounds();win.setBounds(screen.getDisplayMatching(focusBounds).bounds);win.focus();}else if(!active)endFocus();});
   uIOhook.start();
   ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
