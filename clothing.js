@@ -66,7 +66,7 @@ export function createClothing(character,{onPaletteChange=()=>{}}={}){
       const angle=i/64*Math.PI*2;
       for(const side of [-1,1]){
         const x=sign*(.5+.43*1.04)+side*width/2;
-        const u=(Math.abs(x)-.5)/1.04,r=.235-.065*THREE.MathUtils.smoothstep(u,0,1)+.012;
+        const u=(Math.abs(x)-.5)/1.04,r=.21+.012;
         vertex([x,toY(5.35)+Math.cos(angle)*r,Math.sin(angle)*r]);
       }
       if(i)quad(start+(i-1)*2,start+(i-1)*2+1,start+i*2,start+i*2+1);

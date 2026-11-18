@@ -1,3 +1,4 @@
+import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createDancer} from './model.mjs';
@@ -155,9 +156,10 @@ document.querySelector('#reset').onclick=reset;
 function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=Math.max(7.2,14.8*innerHeight/innerWidth);camera.left=-h*innerWidth/innerHeight/2;camera.right=-camera.left;camera.top=h/2;camera.bottom=-h/2;}else camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 selectState('high');
+const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
-  window.desktopPet.onAction(({type,value})=>{if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.onAction(({type,value})=>{if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   let dragging=false;
   renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});

@@ -41,7 +41,7 @@ export class AirPhysics {
       n.pressure+=(supply-n.pressure)*h*28;
       const u=i/24,p=n.pressure;
       // Follower force from the internal jet, with vertical buoyant support.
-      const force=new T.Vector3(this.wind.x*(1+u*2)*p-n.p.x*p*1.2,-9.81+15*p,this.wind.z*(1+u)*p-n.p.z*p*1.2);
+      const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+15*p,this.wind.z*(1+u)*p-n.p.z*p*1.2);
       force.addScaledVector(d,5*p).addScaledVector(new T.Vector3(Math.sin(this.time*1.31+i*.13),0,Math.cos(this.time*.83+i*.11)),p*1.4*u);
       this.integrate(n,force,h);
     }

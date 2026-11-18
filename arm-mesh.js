@@ -6,11 +6,11 @@ export function createArm(sign){
   // One indexed surface. The cuff changes vertex color, never topology/material.
   for(let i=0;i<=48;i++){
     const u=i/48;
-    rings.push({x:.5+1.04*u,r:.235-.065*T.MathUtils.smoothstep(u,0,1),u});
+    rings.push({x:.5+1.04*u,r:.21,u});
   }
   for(let i=1;i<12;i++){
     const phi=i/12*Math.PI/2;
-    rings.push({x:1.54+.17*Math.sin(phi),r:.17*Math.cos(phi),u:1});
+    rings.push({x:1.54+.21*Math.sin(phi),r:.21*Math.cos(phi),u:1});
   }
   for(const ring of rings){
     const c=shirt.clone().lerp(skin,T.MathUtils.smoothstep(ring.u,.415,.445));
@@ -24,7 +24,7 @@ export function createArm(sign){
     const a=i*sides+j,b=(i+1)*sides+j,c=i*sides+(j+1)%sides,d=(i+1)*sides+(j+1)%sides;
     indices.push(a,b,c,b,d,c);
   }
-  const tip=positions.length/3;positions.push(sign*1.71,SHOULDER_Y,0);colors.push(skin.r,skin.g,skin.b);
+  const tip=positions.length/3;positions.push(sign*1.75,SHOULDER_Y,0);colors.push(skin.r,skin.g,skin.b);
   for(let j=0;j<sides;j++)indices.push((rings.length-1)*sides+j,tip,(rings.length-1)*sides+(j+1)%sides);
   const geometry=new T.BufferGeometry();geometry.setIndex(indices);
   geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
