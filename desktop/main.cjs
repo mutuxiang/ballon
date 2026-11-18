@@ -8,9 +8,11 @@ let win,options={skins:[],outfits:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
-  focusHelper=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'focus-window.ps1'),'-PetProcessId',String(process.pid)],{windowsHide:true,stdio:['pipe','ignore','pipe']});
+  focusHelper=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'focus-window.ps1'),'-PetProcessId',String(process.pid)],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   focusHelper.stdin.on('error',e=>console.error('Focus helper input:',e.message));
   focusHelper.stderr.on('data',data=>console.error(String(data)));
+  let helperBuffer='';focusHelper.stdout.on('data',data=>{helperBuffer+=data;let newline;while((newline=helperBuffer.indexOf('\n'))>=0){const line=helperBuffer.slice(0,newline);helperBuffer=helperBuffer.slice(newline+1);try{const result=JSON.parse(line);if(result.type==='ink')win?.webContents.send('pet:action',{type:'ink',value:result.light});else console.log('Focus result',result);}catch{}}});
+  ipcMain.on('pet:sample',(_e,point)=>{const b=win.getBounds(),scale=screen.getDisplayMatching(b).scaleFactor;focusHelper?.stdin.write('sample '+Math.round((b.x+point.x)*scale)+' '+Math.round((b.y+point.y)*scale)+'\n');});
 
   const area=screen.getPrimaryDisplay().workArea;
   win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});

@@ -166,13 +166,14 @@ const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMateria
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
-  window.desktopPet.onAction(({type,value})=>{if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   let dragging=false;
   renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
   renderer.domElement.addEventListener('pointermove',()=>{if(dragging)window.desktopPet.drag('move');});
   renderer.domElement.addEventListener('pointerup',()=>{dragging=false;window.desktopPet.drag('end');});
 }
+let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
   if(current&&playing)simulation.update(dt*speed);
@@ -180,6 +181,7 @@ renderer.setAnimationLoop(()=>{
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);
   focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
+  if(simulation.superMode&&performance.now()-lastInkSample>700){lastInkSample=performance.now();const pos=focusSprite.position.clone().project(camera);window.desktopPet?.sample({x:(pos.x+1)*innerWidth/2,y:(1-pos.y)*innerHeight/2});}
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
   comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&head.p.y>.5);
