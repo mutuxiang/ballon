@@ -8,7 +8,7 @@ export class AirPhysics {
     this.seed=seed;this.target=1;this.time=0;this.acc=0;this.wind=new T.Vector3();
     this.nodes=Array.from({length:25},(_,i)=>({p:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),old:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),pressure:1}));
     this.arms=[-1,1].map(sign=>({sign,nodes:Array.from({length:7},(_,i)=>({p:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),old:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),pressure:1}))}));
-    this.meshes=[];root.traverse(o=>{if(o.isMesh&&['Shirt','Skin','Hair','Trousers','Face_ink','White_details'].includes(o.name)){this.meshes.push({mesh:o,rest:o.geometry.attributes.position.array.slice()});o.frustumCulled=false;}});
+    this.meshes=[];root.traverse(o=>{if(o.isMesh&&(o.userData.deformWithBody||['Shirt','Skin','Hair','Trousers','Face_ink','White_details','Expression_print','Original_face_ink','Original_face_white'].includes(o.name))){this.meshes.push({mesh:o,rest:o.geometry.attributes.position.array.slice()});o.frustumCulled=false;}});
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){this.target={none:0,low:.72,high:1}[s];}

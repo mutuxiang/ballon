@@ -4,7 +4,10 @@ export const DURATION = 8;
 const FRAMES = 64;
 const HEIGHT = 4.9;
 const HEIGHT_SCALE = HEIGHT / 7.6;
-export function createDancer({state='high',rest=false}={}) {
+// Real surface depth keeps the collar in front of both the tie and its ink,
+// including after physical deformation and when exported to GLB.
+export const GARMENT_DEPTH=Object.freeze({tie:.04,tieOutline:.052,collar:.07,collarOutline:.082});
+export function createDancer({state='high',rest=false,face:includeFace=true,separateFace=false}={}) {
   if(!['none','low','high'].includes(state))throw new Error('Unknown air state: '+state);
   const empty=state==='none',low=state==='low';
   const group = new THREE.Group(); group.name = 'Air_Dancer';
@@ -17,6 +20,7 @@ export function createDancer({state='high',rest=false}={}) {
   const materials=[shirt,white,black,skin,hair,trousers];
   for(let i=0;i<materials.length;i++)materials[i]=new THREE.MeshBasicMaterial({color:materials[i].color,side:THREE.DoubleSide});
   const meshNames=['Shirt','White_details','Face_ink','Skin','Hair','Trousers'];
+  if(separateFace){materials.push(materials[2].clone(),materials[1].clone());meshNames.push('Original_face_ink','Original_face_white');}
   const buckets = materials.map(()=>[]);
   const indices = materials.map(()=>[]);
   const seams = materials.map(()=>[]);
@@ -131,31 +135,35 @@ export function createDancer({state='high',rest=false}={}) {
       return decal(center[0]*(1-u)+u*(a[0]*(1-v)+b[0]*v),center[1]*(1-u)+u*(a[1]*(1-v)+b[1]*v),t,depth);
     });
   }
-  patch(1,[[-.48,5.65],[0,5.62],[-.22,5.12]]);
-  patch(1,[[0,5.62],[.48,5.65],[.22,5.12]]);
-  patch(2,[[-.10,5.48],[.10,5.48],[.07,5.14],[-.07,5.14]],.04);
-  patch(2,[[-.065,5.14],[.065,5.14],[.14,3.92],[0,3.72],[-.14,3.92]],.04);
+  patch(1,[[-.48,5.65],[0,5.62],[-.22,5.12]],GARMENT_DEPTH.collar);
+  patch(1,[[0,5.62],[.48,5.65],[.22,5.12]],GARMENT_DEPTH.collar);
+  patch(2,[[-.10,5.48],[.10,5.48],[.07,5.14],[-.07,5.14]],GARMENT_DEPTH.tie);
+  patch(2,[[-.065,5.14],[.065,5.14],[.14,3.92],[0,3.72],[-.14,3.92]],GARMENT_DEPTH.tie);
   // Flat ink and ivory shapes wrap around the breathing tube like a print.
   function face(x,y,t,offset=.025) {
     const sy=7.05+y/HEIGHT_SCALE,r=radius(sy,t);
     return body(x,sy,Math.sqrt(Math.max(.01,r*r-x*x))+offset,t);
   }
   function disk(mat,cx,cy,rx,ry,offset) {
+    if(separateFace)mat=mat===2?6:7;
     surface(mat,3,40,(u,v,t)=>{const a=v*Math.PI*2;return face(cx+rx*u*Math.cos(a),cy+ry*u*Math.sin(a),t,offset);},true);
   }
-  function stroke(points,width=.045,offset=.05) {
+  const faceStroke=.049; // Match the original mouth across all facial strokes.
+  function stroke(points,width=faceStroke,offset=.05) {
     const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(p[0],p[1],0)),false,'centripetal');
-    surface(2,40,2,(u,v,t)=>{const p=curve.getPoint(u),d=curve.getTangent(u);return face(p.x-d.y*(v-.5)*width,p.y+d.x*(v-.5)*width,t,offset);});
+    surface(separateFace?6:2,40,2,(u,v,t)=>{const p=curve.getPoint(u),d=curve.getTangent(u);return face(p.x-d.y*(v-.5)*width,p.y+d.x*(v-.5)*width,t,offset);});
     for(const p of [points[0],points.at(-1)])disk(2,p[0],p[1],width/2,width/2,offset);
   }
+  if(includeFace){
   for(const [x,sign] of [[-.255,-1],[.255,1]]) {
     disk(2,x,.20,.19,.205,.027);
-    disk(1,x,.20,.148,.163,.034);
+    disk(1,x,.20,.19-faceStroke,.205-faceStroke,.034);
     disk(2,x+.015,.195,.073,.076,.042);
-    stroke([[x-.16,.218-sign*.027],[x,.23],[x+.16,.218+sign*.027]],.043,.05);
+    stroke([[x-.16,.218-sign*.027],[x,.23],[x+.16,.218+sign*.027]],faceStroke,.05);
   }
-  stroke([[.025,-.075],[-.045,-.095],[-.055,-.18],[-.015,-.215],[.055,-.21]],.046);
-  stroke([[.045,-.38],[-.105,-.38],[-.18,-.425],[-.175,-.485],[-.09,-.52],[.005,-.52],[-.11,-.54],[-.14,-.595],[-.10,-.65],[.09,-.655]],.049);
+  stroke([[.025,-.075],[-.045,-.095],[-.055,-.18],[-.015,-.215],[.055,-.21]],faceStroke);
+  stroke([[.045,-.38],[-.105,-.38],[-.18,-.425],[-.175,-.485],[-.09,-.52],[.005,-.52],[-.11,-.54],[-.14,-.595],[-.10,-.65],[.09,-.655]],faceStroke);
+  }
   const tracks=[], times=Array.from({length:FRAMES+1},(_,i)=>i/FRAMES*DURATION);
   buckets.forEach((vertices,m)=>{
     function normals(g){g.computeVertexNormals();const n=g.attributes.normal;for(const [a,b] of seams[m]){const v=new THREE.Vector3().fromBufferAttribute(n,a).add(new THREE.Vector3().fromBufferAttribute(n,b)).normalize();n.setXYZ(a,v.x,v.y,v.z);n.setXYZ(b,v.x,v.y,v.z);}}
@@ -176,7 +184,7 @@ export function createDancer({state='high',rest=false}={}) {
   });
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.74,.64,48),materials[2]);base.position.y=.32;base.name='Blower';group.add(base);
   const rim=new THREE.Mesh(new THREE.TorusGeometry(.655,.035,8,48),new THREE.MeshBasicMaterial({color:0x7d898b}));rim.rotation.x=Math.PI/2;rim.position.y=.62;group.add(rim);
-  for(let i=0;i<12;i++){const vent=new THREE.Mesh(new THREE.BoxGeometry(.045,.27,.015),new THREE.MeshBasicMaterial({color:0x080f13}));const a=i/12*Math.PI*2;vent.position.set(Math.sin(a)*.71,.26,Math.cos(a)*.71);vent.rotation.y=a;group.add(vent);}
+  for(let i=0;i<12;i++){const vent=new THREE.Mesh(new THREE.BoxGeometry(.045,.27,.015),new THREE.MeshBasicMaterial({color:0x080f13}));const a=i/12*Math.PI*2;vent.name='Blower_vent_'+i;vent.position.set(Math.sin(a)*.71,.26,Math.cos(a)*.71);vent.rotation.y=a;group.add(vent);}
   const clip=new THREE.AnimationClip('Air_'+state+'_Loop',DURATION,tracks);
   group.userData={description:'Inflatable tired office worker with flat unlit colors',airState:state,units:'meters',animationSeconds:DURATION};
   return {group,clip};
