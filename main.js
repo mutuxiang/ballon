@@ -1,3 +1,4 @@
+import {createMangaMotion} from './manga-motion.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -156,6 +157,7 @@ document.querySelector('#reset').onclick=reset;
 function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=Math.max(7.2,14.8*innerHeight/innerWidth);camera.left=-h*innerWidth/innerHeight/2;camera.right=-camera.left;camera.top=h/2;camera.bottom=-h/2;}else camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 selectState('high');
+const mangaMotion=createMangaMotion(camera);
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
@@ -171,7 +173,7 @@ renderer.setAnimationLoop(()=>{
   if(current&&playing)simulation.update(dt*speed);
   motionExpressions.update(playing?dt*speed:0,simulation);
   skinGradient.update(simulation);
-  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);
+  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
