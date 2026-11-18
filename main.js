@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createDancer} from './model.mjs';
 import {AirPhysics} from './physics.js';
-import {OutlineEffect} from 'three/addons/effects/OutlineEffect.js';
+import {SilhouetteEffect} from './silhouette.js';
 import {applyToon} from './toon.js';
 
 const stage=document.querySelector('#stage');
@@ -13,7 +13,6 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.NoToneMapping;
 stage.prepend(renderer.domElement);
-const effect=new OutlineEffect(renderer);
 const camera=new THREE.PerspectiveCamera(37,innerWidth/innerHeight,.1,100);
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.minDistance=6;controls.maxDistance=24;controls.maxPolarAngle=Math.PI*.49;
@@ -24,7 +23,6 @@ const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshBasicM
 floor.rotation.x=-Math.PI/2;floor.position.y=-.025;scene.add(floor);
 const ring=new THREE.Mesh(new THREE.TorusGeometry(3.8,.012,6,128),new THREE.MeshBasicMaterial({color:0xc4cec0}));
 ring.rotation.x=Math.PI/2;ring.position.y=-.02;scene.add(ring);
-for(const o of [floor,ring])o.material.userData.outlineParameters={visible:false};
 
 const states={
   none:{file:'air-dancer-none.glb',description:'彻底躺平。身体扁塌，手臂软软垂落。',status:'没气 · 躺平休息'},
@@ -33,6 +31,7 @@ const states={
 };
 const character=createDancer({rest:true}).group;
 applyToon(character);scene.add(character);
+const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0});
 const buttons=[...document.querySelectorAll('[data-air]')];
 const play=document.querySelector('#play'),speedInput=document.querySelector('#speed');

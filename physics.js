@@ -65,9 +65,9 @@ export class AirPhysics {
         this.repelSegment(b,a,ns[j+1],min);
       }
     }
-    const shoulder=this.sample(3.677);
+    const shoulder=this.sample(SHOULDER_Y);
     for(const arm of this.arms){
-      const arr=arm.nodes,anchor=shoulder.c.clone().addScaledVector(shoulder.n,arm.sign*.5);
+      const arr=arm.nodes,anchor=this.bodyPosition(arm.sign*.5,SHOULDER_Y,0);
       arr[0].p.copy(anchor);arr[0].old.copy(anchor);arr[0].pressure=shoulder.p;
       for(let i=1;i<arr.length;i++){
         arr[i].pressure+=(arr[i-1].pressure-arr[i].pressure)*h*18;
@@ -102,6 +102,10 @@ export class AirPhysics {
     const c=a.p.clone().lerp(b.p,s);if(y>5.54)c.addScaledVector(tangent,y-5.54);
     return {c,n:SIDE.clone().applyQuaternion(q),b:new T.Vector3(0,0,1).applyQuaternion(q),t:tangent,p:T.MathUtils.lerp(a.pressure,b.pressure,s)};
   }
+  bodyPosition(x,y,z){
+    const f=this.sample(y),w=T.MathUtils.smoothstep(y,.64,1.2);
+    return f.c.addScaledVector(f.n,x*(1-w*(1-f.p)*.48)).addScaledVector(f.b,z*(1-w*(1-f.p)*.72));
+  }
   deform(){
     for(const {mesh,rest} of this.meshes){const out=mesh.geometry.attributes.position;
       for(let i=0;i<out.count;i++){
@@ -116,9 +120,11 @@ export class AirPhysics {
           const tangent=a.p.clone().multiplyScalar(6*s2-6*s).addScaledVector(ta,3*s2-4*s+1).addScaledVector(b.p,-6*s2+6*s).addScaledVector(tb,3*s2-2*s).normalize();
           const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(arm.sign,0,0),tangent),p=T.MathUtils.lerp(a.pressure,b.pressure,s);
           pos=center.add(new T.Vector3(Math.sign(x)*Math.max(0,Math.abs(x)-1.54),(y-SHOULDER_Y)*(.3+.7*p),z*(.5+.5*p)).applyQuaternion(q));
+          // The buried root follows the exact torso deformation, including
+          // deflation and bending; blend gradually into the free arm.
+          pos.lerp(this.bodyPosition(x,y,z),1-T.MathUtils.smoothstep(u,0,.3));
         }else{
-          const f=this.sample(y),p=f.p,w=T.MathUtils.smoothstep(y,.64,1.2),r=1-w*(1-p)*.48;
-          pos=f.c.addScaledVector(f.n,x*r).addScaledVector(f.b,z*(1-w*(1-p)*.72));
+          pos=this.bodyPosition(x,y,z);
         }
         pos.y=Math.max(.025,pos.y);out.setXYZ(i,pos.x,pos.y,pos.z);
       }
