@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
@@ -8,7 +9,7 @@ export class AirPhysics {
     this.seed=seed;this.target=1;this.time=0;this.acc=0;this.wind=new T.Vector3();
     this.nodes=Array.from({length:25},(_,i)=>({p:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),old:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),pressure:1}));
     this.arms=[-1,1].map(sign=>({sign,nodes:Array.from({length:7},(_,i)=>({p:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),old:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),pressure:1}))}));
-    this.meshes=[];root.traverse(o=>{if(o.isMesh&&['Shirt','Skin','Hair','Trousers','Face_ink','White_details'].includes(o.name)){this.meshes.push({mesh:o,rest:o.geometry.attributes.position.array.slice()});o.frustumCulled=false;}});
+    this.meshes=[];root.traverse(o=>{if(o.isMesh&&['Shirt','Skin','Hair','Trousers','Face_ink','White_details','Arm_left','Arm_right'].includes(o.name)){this.meshes.push({mesh:o,rest:o.geometry.attributes.position.array.slice()});o.frustumCulled=false;}});
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){this.target={none:0,low:.72,high:1}[s];}
@@ -105,10 +106,16 @@ export class AirPhysics {
     for(const {mesh,rest} of this.meshes){const out=mesh.geometry.attributes.position;
       for(let i=0;i<out.count;i++){
         const x=rest[i*3],y=rest[i*3+1],z=rest[i*3+2];let pos;
-        if(Math.abs(x)>.67&&Math.abs(y-3.677)<.3){
+        if(mesh.userData.armSign){
           const arm=this.arms[x<0?0:1],u=clamp((Math.abs(x)-.5)/1.04,0,1),k=u*6,j=Math.min(5,Math.floor(k)),s=k-j;
-          const a=arm.nodes[j],b=arm.nodes[j+1],q=new T.Quaternion().setFromUnitVectors(new T.Vector3(arm.sign,0,0),b.p.clone().sub(a.p).normalize());
-          pos=a.p.clone().lerp(b.p,s).add(new T.Vector3(Math.sign(x)*Math.max(0,Math.abs(x)-1.54),(y-3.677)*(.3+.7*a.pressure),z*(.5+.5*a.pressure)).applyQuaternion(q));
+          const a=arm.nodes[j],b=arm.nodes[j+1];
+          const ta=arm.nodes[j+1].p.clone().sub(arm.nodes[Math.max(0,j-1)].p).multiplyScalar(j===0?1:.5);
+          const tb=arm.nodes[Math.min(6,j+2)].p.clone().sub(a.p).multiplyScalar(j===5?1:.5);
+          const s2=s*s,s3=s2*s;
+          const center=a.p.clone().multiplyScalar(2*s3-3*s2+1).addScaledVector(ta,s3-2*s2+s).addScaledVector(b.p,-2*s3+3*s2).addScaledVector(tb,s3-s2);
+          const tangent=a.p.clone().multiplyScalar(6*s2-6*s).addScaledVector(ta,3*s2-4*s+1).addScaledVector(b.p,-6*s2+6*s).addScaledVector(tb,3*s2-2*s).normalize();
+          const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(arm.sign,0,0),tangent),p=T.MathUtils.lerp(a.pressure,b.pressure,s);
+          pos=center.add(new T.Vector3(Math.sign(x)*Math.max(0,Math.abs(x)-1.54),(y-SHOULDER_Y)*(.3+.7*p),z*(.5+.5*p)).applyQuaternion(q));
         }else{
           const f=this.sample(y),p=f.p,w=T.MathUtils.smoothstep(y,.64,1.2),r=1-w*(1-p)*.48;
           pos=f.c.addScaledVector(f.n,x*r).addScaledVector(f.b,z*(1-w*(1-p)*.72));

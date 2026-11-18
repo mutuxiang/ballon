@@ -5,8 +5,8 @@ export function applyToon(root) {
   root.traverse(o=>{
     if(!o.isMesh)return;
     const original=o.material;
-    const fabric=['Shirt','Skin','Hair','Trousers'].includes(o.name);
-    const mat=new THREE.MeshBasicMaterial({color:original.color,side:original.side});
+    const fabric=['Shirt','Skin','Hair','Trousers','Arm_left','Arm_right'].includes(o.name);
+    const mat=new THREE.MeshBasicMaterial({color:original.color,side:original.side,vertexColors:original.vertexColors});
     mat.userData.outlineParameters={visible:fabric||o.name==='Blower',thickness:fabric?.0048:.0035,color:[.035,.045,.04]};
     o.material=mat;
     original.dispose();

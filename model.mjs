@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createArm} from './arm-mesh.js';
 
 export const DURATION = 8;
 const FRAMES = 64;
@@ -91,28 +92,7 @@ export function createDancer({state='high',rest=false}={}) {
     const x=sign*((low?.4:.5)+u*1.04),dy=low?-.62*u+.15*Math.sin(phase-u*3+sign)*u:.12*u+Math.sin(phase*3-u*2.3+sign*.8)*.42*u+Math.sin(phase*2+sign*.7-u*.8)*.37*u*u;
     return f.c.addScaledVector(f.n,x).addScaledVector(f.t,dy).addScaledVector(f.b,.17*Math.sin(u*3-phase*3+sign)*u);
   }
-  for(const sign of [-1,1]) {
-    for(const [mat,lo,hi] of [[0,0,.43],[3,.43,1]])surface(mat,20,24,(s,v,t)=>{
-      const u=THREE.MathUtils.lerp(lo,hi,s);
-      const c=arm(sign,u,t), tangent=arm(sign,Math.min(1,u+.001),t).sub(arm(sign,Math.max(0,u-.001),t)).normalize();
-      const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(), b=tangent.clone().cross(n),a=-v*Math.PI*2;
-      const r=(.235-.065*u)*pressure(t,u*.5+.45);
-      const p=c.clone().addScaledVector(n,Math.cos(a)*r).addScaledVector(b,Math.sin(a)*r);
-      if(empty)p.y=c.y+(p.y-c.y)*.22;
-      if(low)p.y=Math.max(.06,p.y);
-      return p;
-    },true);
-    // Closed rounded mittens make the short exposed hands look inflated.
-    surface(3,12,24,(u,v,t)=>{
-      const c=arm(sign,1,t),tangent=c.clone().sub(arm(sign,.999,t)).normalize();
-      const n=new THREE.Vector3(0,0,1).cross(tangent).normalize(),b=tangent.clone().cross(n);
-      const a=-v*Math.PI*2,phi=u*Math.PI/2,r=.17*pressure(t,.95);
-      const p=c.clone().addScaledVector(tangent,Math.sin(phi)*r).addScaledVector(n,Math.cos(a)*Math.cos(phi)*r).addScaledVector(b,Math.sin(a)*Math.cos(phi)*r);
-      if(empty)p.y=c.y+(p.y-c.y)*.22;
-      if(low)p.y=Math.max(.06,p.y);
-      return p;
-    },true);
-  }
+  group.add(createArm(-1),createArm(1));
   // A closed dark crown with the reference's center-part hairline.
   surface(4,20,64,(u,v,t)=>{
     const a=v*Math.PI*2,front=Math.max(0,Math.sin(a));
@@ -181,4 +161,3 @@ export function createDancer({state='high',rest=false}={}) {
   group.userData={description:'Inflatable tired office worker with flat unlit colors',airState:state,units:'meters',animationSeconds:DURATION};
   return {group,clip};
 }
-

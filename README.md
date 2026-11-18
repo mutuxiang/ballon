@@ -11,14 +11,14 @@
 
 ## 交付
 - model.mjs：角色几何；预览使用 rest 模式生成静止网格，旧曲线代码仅保留供历史参考。
+- arm-mesh.js：每条手臂与手掌使用一张连续网格、共享法线，仅以顶点色区分袖子和皮肤；弯曲方向连续插值。
 - physics.js：实时动力学与网格变形。
-- toon.js：不受灯光影响的色块和细描边。
+- toon.js：不受灯光影响的色块和粗描边。
 - public/air-dancer.glb、air-dancer-low.glb：分别为气多、气少模拟的 6 秒动作采样（不是无缝循环，也不携带实时求解器）。
 - public/air-dancer-none.glb：关风后稳定下来的姿态。
 - dist/：已构建的预览；GLB 使用 KHR_materials_unlit。
 
 ## 运行
-npm install 后运行 npm run dev。npm run model 重新采样并导出三个 GLB，npm run build 构建预览。node physics.test.mjs 检查状态切换连续性、关风落地、重新充气与稳定性。
+npm install 后运行 npm run dev。npm run model 重新采样并导出三个 GLB，npm run build 构建预览。npm test 检查手臂网格连通性、接缝与法线，以及状态切换连续性、关风落地、重新充气与稳定性。
 
 已安装 Node.js 可双击 start-preview.cmd，或 node preview.cjs 后打开 http://127.0.0.1:5187/ 。使用本地 HTTP 服务访问，不能直接双击 dist/index.html。
-
