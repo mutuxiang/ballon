@@ -8,7 +8,7 @@ export function createMangaMotion(camera){
   const project=p=>{const v=p.clone().project(camera);return {x:(v.x+1)*innerWidth/2,y:(1-v.y)*innerHeight/2};};
   function line(points,width=2){
     ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
-    ctx.strokeStyle='#fff';ctx.lineWidth=width+2;ctx.stroke();ctx.strokeStyle='#202421';ctx.lineWidth=width;ctx.stroke();
+    ctx.strokeStyle='#fff';ctx.lineWidth=width+1;ctx.stroke();ctx.strokeStyle='#202421';ctx.lineWidth=width;ctx.stroke();
   }
   return {canvas,update(dt,simulation){
     if(dt<=0)return;
@@ -27,7 +27,7 @@ export function createMangaMotion(camera){
       let dx=a.x-b.x,dy=a.y-b.y,len=Math.hypot(dx,dy);if(len<.01){dx=1;dy=1;len=Math.SQRT2;}dx/=len;dy/=len;
       // Two fans outside the face, trailing against the direction of descent.
       for(const side of [-1,1])for(let i=0;i<6;i++){
-        const offset=scale*(1.15+i*.17),length=scale*(.6+(i%3)*.3),jitter=Math.sin(i*7+Math.floor(time*12))*.9;
+        const offset=scale*(2.1+i*.17),length=scale*(.6+(i%3)*.3),jitter=Math.sin(i*7+Math.floor(time*12))*.9;
         const x=a.x-dy*offset*side-dx*scale*.25,y=a.y+dx*offset*side-dy*scale*.25;
         line([[x,y],[x-dx*length*.6+jitter,y-dy*length*.6],[x-dx*length,y-dy*length]],i%3===0?2.4:1.2);
       }
@@ -42,3 +42,4 @@ export function createMangaMotion(camera){
     ctx.globalAlpha=1;
   }};
 }
+
