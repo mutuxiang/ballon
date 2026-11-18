@@ -39,3 +39,7 @@ assert.ok(heights.none<1.4,'Deflation must settle near ground');
 assert.ok(heights.high>4,'Air must recover an already collapsed body');
 assert.ok(heights.low>heights.none,'Low air must supply some support');
 console.log('Physics transition and stability checks passed',heights);
+
+const pet=new AirPhysics(createDancer({rest:true}).group,{planar:true});
+for(const state of ['high','none','low']){pet.setState(state);for(let i=0;i<1800;i++)pet.step(1/120);for(const n of [...pet.nodes,...pet.arms.flatMap(a=>a.nodes)])assert.equal(n.p.z,0,'Desktop pet must stay in the front plane');}
+console.log('Desktop pet planar motion checks passed');

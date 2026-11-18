@@ -13,23 +13,28 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import './skins.css';
 
 const stage=document.querySelector('#stage');
+const petMode=new URLSearchParams(location.search).has('pet');
+if(petMode){document.documentElement.classList.add('desktop-pet');const style=document.createElement('style');style.textContent='html.desktop-pet,html.desktop-pet body{background:transparent!important;overflow:hidden} .desktop-pet main{min-height:0;height:100vh} .desktop-pet header,.desktop-pet .intro,.desktop-pet .hint,.desktop-pet .air-states,.desktop-pet .controls,.desktop-pet #progress{display:none!important}';document.head.append(style);}
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#edf0eb');
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:petMode});
+if(petMode){scene.background=null;renderer.setClearColor(0,0);}
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.NoToneMapping;
 stage.prepend(renderer.domElement);
-const camera=new THREE.PerspectiveCamera(37,innerWidth/innerHeight,.1,100);
+const camera=petMode?new THREE.OrthographicCamera(-8,8,7,-.5,.1,100):new THREE.PerspectiveCamera(37,innerWidth/innerHeight,.1,100);
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.minDistance=6;controls.maxDistance=24;controls.maxPolarAngle=Math.PI*.49;
-function reset(){camera.position.set(2.4,4.5,14.3);controls.target.set(.4,2.7,0);controls.update();}
+function reset(){camera.position.set(petMode?0:2.4,petMode?3.2:4.5,14.3);controls.target.set(petMode?0:.4,petMode?3.2:2.7,0);controls.update();}
 reset();
+if(petMode)controls.enabled=false;
 // No lights, specular highlights, shading bands, or cast shadows.
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshBasicMaterial({color:0xedf0eb}));
 floor.rotation.x=-Math.PI/2;floor.position.y=-.025;scene.add(floor);
 const ring=new THREE.Mesh(new THREE.TorusGeometry(3.8,.012,6,128),new THREE.MeshBasicMaterial({color:0xc4cec0}));
 ring.rotation.x=Math.PI/2;ring.position.y=-.02;scene.add(ring);
+if(petMode){floor.visible=false;ring.visible=false;}
 
 const states={
   none:{file:'air-dancer-none.glb',description:'彻底躺平。身体扁塌，手臂软软垂落。',status:'没气 · 躺平休息'},
@@ -47,7 +52,7 @@ const clothing=createClothing(character,{onPaletteChange:palette=>{
   document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
 }});
 const effect=new SilhouetteEffect(renderer,character);
-const simulation=new AirPhysics(character,{seed:Date.now()>>>0});
+const simulation=new AirPhysics(character,{seed:Date.now()>>>0,planar:petMode});
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
 outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
 document.querySelector('#air-states').append(outfitPanel);
@@ -147,9 +152,18 @@ for(const b of buttons)b.onclick=()=>selectState(b.dataset.air);
 play.onclick=()=>{playing=!playing;play.textContent=playing?'暂停动画':'继续播放';play.setAttribute('aria-pressed',String(!playing));};
 speedInput.oninput=e=>{speed=+e.target.value;document.querySelector('#speedVal').textContent=speed.toFixed(1)+'×';};
 document.querySelector('#reset').onclick=reset;
-function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=Math.max(7.2,14.8*innerHeight/innerWidth);camera.left=-h*innerWidth/innerHeight/2;camera.right=-camera.left;camera.top=h/2;camera.bottom=-h/2;}else camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 selectState('high');
+if(petMode&&window.desktopPet){
+  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
+  window.desktopPet.onAction(({type,value})=>{if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
+  let dragging=false;
+  renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
+  renderer.domElement.addEventListener('pointermove',()=>{if(dragging)window.desktopPet.drag('move');});
+  renderer.domElement.addEventListener('pointerup',()=>{dragging=false;window.desktopPet.drag('end');});
+}
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
   if(current&&playing)simulation.update(dt*speed);

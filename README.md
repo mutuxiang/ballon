@@ -36,3 +36,6 @@
 npm install 后运行 npm run dev。npm run model 重新采样并导出三个 GLB，npm run build 构建预览。npm test 检查手臂网格连通性、接缝与法线，以及状态切换连续性、关风落地、重新充气与稳定性。
 
 已安装 Node.js 可双击 start-preview.cmd，或 node preview.cjs 后打开 http://127.0.0.1:5187/ 。使用本地 HTTP 服务访问，不能直接双击 dist/index.html。
+
+## Windows 桌宠
+双击 start-pet.cmd，或运行 npm run pet。首次使用先 npm install；启动后无需本地网页服务器。透明无边框窗口默认置顶，左键拖动，右键切换气量、表情、服装、暂停和退出。固定正面正交视角，身体与手臂的物理节点限制在左右平面内，因此放气向左右倒下。npm run pet:start 直接运行已构建版本。网页预览仍可自由旋转。

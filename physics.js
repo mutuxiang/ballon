@@ -5,7 +5,8 @@ const clamp=T.MathUtils.clamp;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
 export class AirPhysics {
-  constructor(root,{seed=28713}={}){
+  constructor(root,{seed=28713,planar=false}={}){
+    this.planar=planar;
     this.seed=seed;this.target=1;this.time=0;this.acc=0;this.wind=new T.Vector3();
     this.nodes=Array.from({length:25},(_,i)=>({p:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),old:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),pressure:1}));
     this.arms=[-1,1].map(sign=>({sign,nodes:Array.from({length:7},(_,i)=>({p:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),old:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),pressure:1}))}));
@@ -94,6 +95,7 @@ export class AirPhysics {
       this.repelSegment(this.arms[0].nodes[i],this.arms[1].nodes[j],this.arms[1].nodes[j+1],.28+.2*shoulder.p);
       this.repelSegment(this.arms[1].nodes[i],this.arms[0].nodes[j],this.arms[0].nodes[j+1],.28+.2*shoulder.p);
     }
+    if(this.planar)for(const n of [...ns,...this.arms.flatMap(a=>a.nodes)]){n.p.z=0;n.old.z=0;}
   }
   sample(y){const k=clamp((y-.64)/4.9*24,0,24),i=Math.min(23,Math.floor(k)),s=k-i,a=this.nodes[i],b=this.nodes[i+1];
     const ta=this.nodes[Math.min(24,i+1)].p.clone().sub(this.nodes[Math.max(0,i-1)].p).normalize();

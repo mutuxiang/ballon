@@ -31,9 +31,12 @@ export class SilhouetteEffect {
               expanded=max(expanded,texture2D(maskMap,vUv+offset).r);
             }
           }
-          vec3 color=texture2D(colorMap,vUv).rgb;
-          gl_FragColor=vec4(mix(color,ink,max(0.,expanded-center)),1.);
+          vec4 color=texture2D(colorMap,vUv);
+          float edge=max(0.,expanded-center);
+          float alpha=color.a+edge*(1.-color.a);
+          gl_FragColor=vec4(mix(color.rgb,ink,edge/max(alpha,.0001)),alpha);
           #include <colorspace_fragment>
+          gl_FragColor.rgb *= alpha;
         }`
     });
     this.quadScene=new T.Scene();
