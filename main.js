@@ -135,6 +135,7 @@ async function selectState(id){
   description.textContent='正在切换充气状态…';
   document.querySelector('#error').textContent='';
   try{
+    if(active!==id&&(active==='none'||id==='none'))simulation.mangaTransition=2.8;
     active=id;current=character;simulation.setState(id);
     for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.air===id));
     description.textContent=states[id].description;status.textContent=states[id].status;
@@ -158,6 +159,8 @@ function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=M
 addEventListener('resize',resize);resize();
 selectState('high');
 const mangaMotion=createMangaMotion(camera);
+const auraTexture=new THREE.TextureLoader().load('./worker-super-aura.png');auraTexture.colorSpace=THREE.SRGBColorSpace;
+const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:auraTexture,transparent:true,depthWrite:false}));aura.scale.set(2.8,1.87,1);aura.visible=false;scene.add(aura);
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
@@ -174,7 +177,10 @@ renderer.setAnimationLoop(()=>{
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);
-  comic.setEnabled(simulation.superMode||simulation.nodes[24].p.y<4.9);
+  aura.visible=Boolean(simulation.superMode);const auraFrame=simulation.sample(5.35);aura.position.copy(auraFrame.c).addScaledVector(auraFrame.t,.4);aura.position.z-=.3;
+  simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
+  const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
+  comic.setEnabled(simulation.mangaTransition>0&&moving&&head.p.y>.5);
   controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });

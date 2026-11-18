@@ -1,23 +1,27 @@
 const {app,BrowserWindow,ipcMain,Menu,screen}=require('electron');
 const path=require('node:path');
 const {uIOhook,UiohookKey}=require('uiohook-napi');
-let pedalEnabled=true,focusBounds=null;
+const {spawn}=require('node:child_process');
+let focusHelper=null,focusActive=false;
+let pedalEnabled=true;
 let win,options={skins:[],outfits:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
+  focusHelper=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'focus-window.ps1'),'-PetProcessId',String(process.pid)],{windowsHide:true,stdio:['pipe','ignore','pipe']});
+  focusHelper.stdin.on('error',()=>{});
   const area=screen.getPrimaryDisplay().workArea;
   win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.setMenuBarVisibility(false);win.loadFile(path.join(__dirname,'../dist/index.html'),{query:{pet:'1'}});
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
-  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
-  uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusBounds){endFocus();send('focus-end');}});
-  function endFocus(){if(!focusBounds)return;win.setBounds(focusBounds);focusBounds=null;}
-  ipcMain.on('pet:focus',(_e,active)=>{if(active&&!focusBounds){focusBounds=win.getBounds();win.setBounds(screen.getDisplayMatching(focusBounds).bounds);win.focus();}else if(!active)endFocus();});
+  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.Left?'left':e.keycode===UiohookKey.Right?'right':null;if(side)send('pedal',{side,down});});
+  uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
+  function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
+  ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');});
   uIOhook.start();
   ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
-    {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
+    {label:'脚蹬控制 ← / →',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
     {label:'衣服',submenu:options.outfits.map(s=>({label:s.name,click:()=>send('outfit',s.id)}))},
@@ -33,4 +37,4 @@ app.whenReady().then(()=>{
 });
 app.on('window-all-closed',()=>app.quit());
 
-app.on('will-quit',()=>uIOhook.stop());
+app.on('will-quit',()=>{uIOhook.stop();focusHelper?.stdin.end('exit\n');});

@@ -1,7 +1,7 @@
 import {Vector3} from 'three';
 export function createMangaMotion(camera){
   const canvas=document.createElement('canvas');canvas.className='manga-motion';canvas.setAttribute('aria-hidden','true');Object.assign(canvas.style,{position:'fixed',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'4'});document.body.append(canvas);
-  const style=document.createElement('style');style.textContent='.super-mode body{background:#f4eedb!important}.desktop-pet.super-mode body{background:#f4eedbf5!important}';document.head.append(style);
+  const style=document.createElement('style');style.textContent='.super-mode body{background:transparent}';document.head.append(style);
   const ctx=canvas.getContext('2d');let time=0,previous=null,rise=0;
   const project=p=>{const v=p.clone().project(camera);return {x:(v.x+1)*innerWidth/2,y:(1-v.y)*innerHeight/2};};
   return {canvas,update(dt,sim){
@@ -19,9 +19,6 @@ export function createMangaMotion(camera){
       }
       ctx.strokeStyle='#d69c17';ctx.lineWidth=3;ctx.beginPath();
       for(let i=0;i<=32;i++){const angle=i/32*Math.PI*2,rr=r*(1.8+(i%2)*.32+Math.sin(time*15+i)*.08);const x=a.x+Math.cos(angle)*rr,y=a.y+Math.sin(angle)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.stroke();
-    }else if(rise>.1){
-      ctx.globalAlpha=rise;
-      for(const side of [-1,1]){const x=a.x+side*r*1.5,y=a.y-r*.2;ctx.beginPath();ctx.moveTo(x,y-r*.55);ctx.lineTo(x+r*.12,y);ctx.lineTo(x,y+r*.55);ctx.lineTo(x-r*.12,y);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=1.3;ctx.stroke();}
     }
     ctx.globalAlpha=1;
   }};

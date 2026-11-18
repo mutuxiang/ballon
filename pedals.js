@@ -22,7 +22,7 @@ export function mountPedals({selectState,simulation}){
     if(down){charge.beat(side,time);const sign=side==='left'?-1:1;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.007*(i-12)/12;}
   }});
   if(!window.desktopPet){
-    const key=(e,down)=>{if(e.target.matches('input,textarea,select'))return;const side={KeyA:'left',KeyL:'right'}[e.code];if(side){e.preventDefault();controller.set(side,down);}};
+    const key=(e,down)=>{if(e.target.matches('input,textarea,select'))return;const side={ArrowLeft:'left',ArrowRight:'right'}[e.code];if(side){e.preventDefault();controller.set(side,down);}};
     addEventListener('keydown',e=>key(e,true));addEventListener('keyup',e=>key(e,false));addEventListener('blur',()=>controller.reset());
   }
   addEventListener('keydown',e=>{if(e.code==='Escape')charge.cancel();});
