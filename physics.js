@@ -32,7 +32,7 @@ export class AirPhysics {
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
     this.wind.clampLength(0,2.2);
     const ns=this.nodes;
-    ns[0].pressure+=(this.target-ns[0].pressure)*h*2.6;
+    ns[0].pressure+=((this.superMode?1:this.target)-ns[0].pressure)*h*2.6;
     for(let i=24;i>0;i--){
       const n=ns[i],d=n.p.clone().sub(ns[i-1].p).normalize();
       const prev=i>1?ns[i-1].p.clone().sub(ns[i-2].p).normalize():UP;
@@ -41,7 +41,7 @@ export class AirPhysics {
       n.pressure+=(supply-n.pressure)*h*28;
       const u=i/24,p=n.pressure;
       // Follower force from the internal jet, with vertical buoyant support.
-      const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+15*p,this.wind.z*(1+u)*p-n.p.z*p*1.2);
+      const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+(this.superMode?19:15)*p,this.wind.z*(1+u)*p-n.p.z*p*1.2);
       force.addScaledVector(d,5*p).addScaledVector(new T.Vector3(Math.sin(this.time*1.31+i*.13),0,Math.cos(this.time*.83+i*.11)),p*1.4*u);
       this.integrate(n,force,h);
     }
@@ -51,7 +51,7 @@ export class AirPhysics {
       for(let i=2;i<24;i++){
         const p=ns[i].pressure;
         // A pressurized tube resists curvature; a depressurized one folds.
-        this.solveDistance(ns[i-1],ns[i+1],4.9/12,.09+.65*p*p,i===2);
+        this.solveDistance(ns[i-1],ns[i+1],4.9/12,.09+(this.superMode?1.2:.65)*p*p,i===2);
         const minSpan=2*(4.9/24)*Math.cos(.17);
         if(ns[i-1].p.distanceTo(ns[i+1].p)<minSpan)this.solveDistance(ns[i-1],ns[i+1],minSpan,.9,i===2);
       }

@@ -15,7 +15,10 @@ export function createPedals({onState,onBeat}){
 }
 
 export function mountPedals({selectState,simulation}){
-  const meter=document.createElement('progress');meter.max=1;meter.value=0;meter.setAttribute('aria-label','交替踩踏蓄力');Object.assign(meter.style,{position:'fixed',bottom:'12px',left:'42%',width:'16%',height:'10px',accentColor:'#303430',zIndex:'25',display:'none'});document.body.append(meter);
+  const meter=document.createElement('div');meter.setAttribute('role','progressbar');meter.setAttribute('aria-label','交替踩踏蓄力');meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');Object.assign(meter.style,{position:'fixed',bottom:'-8px',left:'50%',transform:'translateX(-50%)',width:'220px',height:'74px',zIndex:'25',display:'none',pointerEvents:'none'});
+  const frame=document.createElement('img');frame.src='./manga-charge-frame.png';Object.assign(frame.style,{width:'100%',height:'100%',position:'absolute'});
+  const track=document.createElement('div');Object.assign(track.style,{position:'absolute',left:'8%',top:'39%',width:'84%',height:'22%',borderRadius:'12px',overflow:'hidden'});
+  const fill=document.createElement('div');Object.assign(fill.style,{height:'100%',width:'0%',background:'repeating-linear-gradient(125deg,#252525 0 3px,#888 3px 4px)',transition:'width .1s linear'});track.append(fill);meter.append(frame,track);document.body.append(meter);
   let time=0;
   const charge=createCharge(active=>{simulation.superMode=active;window.desktopPet?.focus(active);document.documentElement.classList.toggle('super-mode',active);selectState(active?'high':['none','low','high'][Number(controller.feet.left)+Number(controller.feet.right)]);});
   const controller=createPedals({onState(state,feet){if(!charge.active)selectState(state);simulation.pedalLean=feet.left===feet.right?0:feet.left?-.8:.8;},onBeat({side,down}){
@@ -26,7 +29,7 @@ export function mountPedals({selectState,simulation}){
     addEventListener('keydown',e=>key(e,true));addEventListener('keyup',e=>key(e,false));addEventListener('blur',()=>controller.reset());
   }
   addEventListener('keydown',e=>{if(e.code==='Escape')charge.cancel();});
-  controller.update=dt=>{time+=dt;charge.update(dt,time);meter.value=charge.value;meter.style.display=charge.value>0?'block':'none';};
+  controller.update=dt=>{time+=dt;charge.update(dt,time);fill.style.width=charge.value*100+'%';meter.setAttribute('aria-valuenow',String(Math.round(charge.value*100)));meter.style.display=charge.value>0?'block':'none';};
   controller.cancelSuper=()=>charge.cancel();
   controller.reset();return controller;
 }

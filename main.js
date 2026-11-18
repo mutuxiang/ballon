@@ -159,9 +159,10 @@ function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=M
 addEventListener('resize',resize);resize();
 selectState('high');
 const mangaMotion=createMangaMotion(camera);
-const focusMaterial=new THREE.SpriteMaterial({transparent:true,depthWrite:false});
-const focusSprite=new THREE.Sprite(focusMaterial);focusSprite.visible=false;scene.add(focusSprite);
-new THREE.TextureLoader().load('./focus-ink-surround.png',texture=>{texture.colorSpace=THREE.SRGBColorSpace;focusMaterial.map=texture;focusMaterial.needsUpdate=true;focusSprite.scale.set(4.8*texture.image.width/texture.image.height,4.8,1);});
+const haloGeometry=new THREE.BufferGeometry(),haloPositions=[];
+for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;haloPositions.push(Math.cos(a)*r,Math.sin(a)*r,0,Math.cos(a)*R,Math.sin(a)*R,0);}
+haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
+const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,petMode});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
@@ -178,7 +179,7 @@ renderer.setAnimationLoop(()=>{
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);
-  focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(4.4);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
+  focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
   comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&head.p.y>.5);
