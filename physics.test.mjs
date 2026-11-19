@@ -43,3 +43,5 @@ console.log('Physics transition and stability checks passed',heights);
 const pet=new AirPhysics(createDancer({rest:true}).group,{planar:true});
 for(const state of ['high','none','low']){pet.setState(state);for(let i=0;i<1800;i++)pet.step(1/120);for(const n of [...pet.nodes,...pet.arms.flatMap(a=>a.nodes)])assert.equal(n.p.z,0,'Desktop pet must stay in the front plane');}
 console.log('Desktop pet planar motion checks passed');
+
+const response=new AirPhysics(createDancer({rest:true}).group,{depthMotion:.32});response.setState('none');for(let i=0;i<1800;i++)response.step(1/120);response.setState('low');for(let i=0;i<72;i++)response.step(1/120);assert.ok(response.nodes[24].pressure>.5,'Single pedal should deliver air to head within 0.6 seconds');assert.equal(response.target,.72,'Quick response must retain half-air target');
