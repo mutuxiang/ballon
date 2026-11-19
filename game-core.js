@@ -3,7 +3,7 @@ export const ACTIONS=['up','right','down','left','rotate'];
 export const ACTION_LABELS={up:'↑',down:'↓',left:'←',right:'→',rotate:'↻'};
 export function defenseAnchor(body){return {x:body.reduce((s,p)=>s+p.x,0)/body.length,y:body.reduce((s,p)=>s+p.y,0)/body.length};}
 export class WorkGame {
-  constructor(random=Math.random){this.random=random;this.halfWidth=600;this.reset();}
+  constructor(random=Math.random){this.random=random;this.halfWidth=600;this.practiceMode=true;this.reset();}
   reset(){
     this.time=0;this.score=0;this.wave=1;this.air=100;this.invulnerable=0;this.combo=0;this.bestCombo=0;
     this.charge=0;this.ultimateHits=0;this.lastBeat=-10;this.lastAction=-10;
@@ -82,7 +82,7 @@ export class WorkGame {
       if(o.failed&&this.time>o.hitAt+.65){
         o.safe=true;o.vx=o.dx*120;o.vy=o.dy*120;
         if(this.invulnerable<=0){this.air=Math.max(0,this.air-28);this.invulnerable=.6;this.events.push({type:'leak',x:o.x,y:o.y});
-          if(this.air<=0){this.over=true;this.release();this.events.push({type:'pop'});break;}}
+          if(this.air<=0&&!this.practiceMode){this.over=true;this.release();this.events.push({type:'pop'});break;}}
       }
     }
     this.items=this.items.filter(o=>o.age<14&&o.y<1100&&o.y>-450&&Math.abs(o.x)<this.halfWidth+450);

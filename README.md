@@ -85,3 +85,5 @@ npm install 后运行 npm run dev。npm run model 重新采样并导出三个 GL
 window.airWorkerGame.perform(action, side) 接收 up/down/left/right/rotate 及 left/right；setStick(side,x,y,down) 提供轴与踩踏开关；setPedal(side,down) 只控制踩踏。旋转硬件可调用 perform('rotate',side)。当前尚未连接真实脚蹬。
 
 自动测试覆盖三侧生成、全动作覆盖、到线位置和时间一致、正确脚/动作、PERFECT/GOOD窗口、提前不预存、按错不能补救、漏拍漏气、连击、清场和表情优先级。生产构建通过。浏览器视觉验证受此前本地地址权限拒绝限制，本轮未进行画面实测。
+
+当前默认开启不死亡试玩模式：受击仍漏气和变化表情，气量降到 0 也不结束，可继续跟拍并通过成功格挡补气。
