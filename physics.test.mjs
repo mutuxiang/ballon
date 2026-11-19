@@ -48,11 +48,26 @@ const response=new AirPhysics(createDancer({rest:true}).group,{depthMotion:.32})
 
 const deflation=new AirPhysics(new Group(),{depthMotion:.32});
 deflation.setState('none');
+assert.equal(deflation.dodge(1),false,'Turning off the air must disable the mouse dodge immediately');
 for(let i=0;i<60;i++)deflation.step(1/120);
 assert.ok(deflation.nodes[0].pressure>.58,'The inlet must release air gradually');
 assert.ok(deflation.nodes[24].pressure>.8,'The head must retain most of its air for the first half-second');
 for(let i=60;i<180;i++)deflation.step(1/120);
 assert.ok(deflation.nodes[24].pressure<.45,'The pressure must keep falling with the blower off');
+
+const resting=new AirPhysics(new Group(),{depthMotion:.32});
+resting.setState('none');
+for(let i=0;i<900;i++)resting.step(1/120);
+const restingPose=resting.nodes.map(node=>node.p.clone());
+assert.equal(resting.dodge(-1),false,'A deflated body must ignore the mouse');
+assert.deepEqual(resting.nodes.map(node=>node.p),restingPose);
+resting.setState('low');
+assert.equal(resting.dodge(1),false,'The body must regain pressure before dodging again');
+for(let i=0;i<120;i++)resting.step(1/120);
+assert.equal(resting.dodge(1),true,'Reinflation must restore mouse dodging');
+resting.setState('none');
+resting.step(1/120);
+assert.equal(resting.dodgeMotion,null,'Turning off the air must release an ongoing dodge');
 
 for(const direction of [-1,1]){
   const baseline=new AirPhysics(new Group(),{depthMotion:.32});

@@ -201,8 +201,7 @@ if(petMode&&window.desktopPet){
     if(dodged||gap>16||previousGap-gap<1)return;
     const offset=point.x-closestX;
     const side=Math.abs(offset)>3?offset:previous.x-closestX;
-    simulation.dodge(side<0?1:-1);
-    dodged=true;
+    dodged=simulation.dodge(side<0?1:-1);
   }
 
   function endDrag(event){

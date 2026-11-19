@@ -16,10 +16,13 @@ export class AirPhysics {
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){const target={none:0,low:.72,high:1}[s];if(s==='low'&&target>this.target)this.lowBoost=1.6;this.target=target;}
+  get canDodge(){return (this.superMode||this.target>0)&&this.nodes[24].pressure>=.25;}
   dodge(direction){
-    if(!this.dodgeMotion)this.dodgeMotion={
+    if(!this.canDodge||this.dodgeMotion)return false;
+    this.dodgeMotion={
       direction,start:this.time,pose:this.nodes.map(node=>node.p.clone())
     };
+    return true;
   }
   update(dt){this.acc+=Math.min(dt,.1);while(this.acc>=1/120){this.step(1/120);this.acc-=1/120;}this.deform();}
   solveDistance(a,b,length,strength=1,fixed=false){const d=b.p.clone().sub(a.p),len=d.length();if(len<1e-7)return;d.multiplyScalar((len-length)/len*strength);if(fixed)b.p.sub(d);else{a.p.addScaledVector(d,.5);b.p.addScaledVector(d,-.5);}}
@@ -35,6 +38,7 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
+    if(this.dodgeMotion&&!this.canDodge)this.dodgeMotion=null;
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
     this.wind.clampLength(0,2.2);

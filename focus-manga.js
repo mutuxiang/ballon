@@ -71,13 +71,15 @@ export function createFocusManga(scene, character, camera) {
   }
   character.add(shading);
 
-  let active = false, age = 0, variant = Math.floor(Math.random() * 4);
+  const bubbleVariants = [0, 2, 3];
+  let active = false, age = 0, variantIndex = Math.floor(Math.random() * bubbleVariants.length);
   const behind = new THREE.Vector3();
   return {
     update(dt, simulation) {
       const focused = Boolean(simulation.superMode);
       if (focused && !active) {
-        variant = (variant + 1 + Math.floor(Math.random() * 3)) % 4;
+        variantIndex = (variantIndex + 1 + Math.floor(Math.random() * (bubbleVariants.length - 1))) % bubbleVariants.length;
+        const variant = bubbleVariants[variantIndex];
         atlas.offset.set(variant % 2 * .5, variant < 2 ? .5 : 0);
         age = 0;
       }
