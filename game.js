@@ -132,7 +132,7 @@ function draw(dt,points){
     if(game.barrage){ctx.save();ctx.strokeStyle='#ad754d';ctx.setLineDash([5,9]);ctx.lineWidth=2;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius+12,0,Math.PI*2);ctx.stroke();ctx.restore();}
     const next=game.nextNote;
     if(next){const angle=Math.atan2(next.dy,next.dx);ctx.strokeStyle=Math.abs(game.time-next.hitAt)<=HIT_WINDOW?'#ba8238':'#b6a08a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius,angle-.12,angle+.12);ctx.stroke();}
-    ctx.textAlign='center';ctx.fillStyle='#887663';ctx.font='10px sans-serif';ctx.fillText('判 定 线',anchor.x,anchor.y+radius+18);
+    ctx.textAlign='center';
     if(judgmentTime>0){ctx.globalAlpha=Math.min(1,judgmentTime*3);ctx.fillStyle=judgmentQuality==='miss'?'#ae6d58':'#96692e';ctx.font='bold 23px sans-serif';ctx.fillText(judgment,anchor.x,anchor.y-radius-38);ctx.globalAlpha=1;}
     if(game.combo>1){ctx.font='12px sans-serif';ctx.fillStyle='#9b7951';ctx.fillText(game.combo+' COMBO',anchor.x,anchor.y+radius+40);}
     if(moveFlash>0){ctx.globalAlpha=moveFlash/.4;ctx.font='28px sans-serif';ctx.fillStyle='#ae8043';ctx.fillText(ACTION_LABELS[lastMove]||'',anchor.x+radius+22,anchor.y);ctx.globalAlpha=1;}
@@ -173,7 +173,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
       if(ev.type==='pop'){phase='over';release();best=Math.max(best,game.score);try{localStorage.setItem('air-worker-best',String(best));}catch{}$('#best').textContent=best;panel(`活动了 ${Math.floor(game.time)} 秒，最高 ${game.bestCombo} 连击。休息一下，再充满气。`,'重新充气');}
     }
   }
-  $('#score').textContent=String(game.score).padStart(4,'0');$('#time').textContent=String(Math.floor(game.time/60)).padStart(2,'0')+':'+String(Math.floor(game.time%60)).padStart(2,'0');$('#wave').textContent=String(game.wave).padStart(2,'0');$('#charge').max=BARRAGE_STEPS;$('#charge').value=game.charge;
+  $('#score').textContent=String(game.score).padStart(4,'0');$('#wave').textContent=String(game.wave).padStart(2,'0');$('#charge').max=BARRAGE_STEPS;$('#charge').value=game.charge;
   const warning=game.barrageState==='warning';
   $('#barrage-title').textContent=warning?'攻击大爆发 · 准备双脚':'攻击大爆发 · 交替快踩！';
   $('#charge-label').textContent=warning?Math.ceil(game.barrage.rushAt-game.time)+' 秒后来袭':Math.ceil(game.barrageRemaining)+' 秒 · '+Math.floor(game.charge)+' / '+BARRAGE_STEPS;

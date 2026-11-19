@@ -3,10 +3,10 @@
 <body><main id="game" data-phase="ready"><div class="stage-tone" aria-hidden="true"></div><canvas id="office-layer" aria-hidden="true"></canvas><div id="world" aria-hidden="true"></div><canvas id="effects" aria-label="保护充气打工人的游玩区域"></canvas>
 <header><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏</button></div></header>
 <aside class="scoreboard" aria-label="工作间隙活动记录">
-  <div class="score-line"><span class="metric-label">活动积分</span><div><strong id="score">0000</strong><small>分</small></div></div>
-  <div class="break-stats"><div><span class="metric-label">已休息</span><b id="time">00:00</b></div><div><span class="metric-label">波次</span><b><span id="wave">01</span><small>波</small></b></div></div>
-  <div class="air-meter"><div><span>气量</span><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
-  <div class="best"><span>个人最佳</span><b id="best">0</b></div>
+  <div class="metric score-line"><span class="metric-label">活动积分</span><div class="metric-value"><strong id="score">0000</strong><small>分</small></div></div>
+  <div class="metric wave-meter"><span class="metric-label">波次</span><div class="metric-value"><b id="wave">01</b><small>波</small></div></div>
+  <div class="metric air-meter"><span class="metric-label">气量</span><div class="metric-value"><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
+  <div class="metric best"><span class="metric-label">个人最佳</span><div class="metric-value"><b id="best">0</b></div></div>
 </aside>
 <div class="energy" hidden aria-live="off"><div><span id="barrage-title">攻击大爆发</span><span id="charge-label">准备双脚</span></div><progress id="charge" max="12" value="0" aria-label="双脚交替踩踏蓄力"></progress><div class="barrage-feet"><span id="step-left">F 左脚</span><b>交替快踩</b><span id="step-right">H 右脚</span></div><p id="barrage-hint">按下后松开，再踩另一脚</p></div>
 <aside id="coach" class="coach" aria-label="操作说明">
