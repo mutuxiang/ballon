@@ -15,8 +15,9 @@ export function createFocusManga(scene, character, camera) {
   const shading = new THREE.Group();
   shading.name = 'Focus_ink_shadows';
   shading.visible = false;
-  const bodyTexture = new THREE.TextureLoader().load('./focus-body-hatched-v2.png');
+  const bodyTexture = new THREE.TextureLoader().load('./focus-contour-ink-v3.png');
   bodyTexture.colorSpace = THREE.SRGBColorSpace;
+  bodyTexture.wrapS = bodyTexture.wrapT = THREE.RepeatWrapping;
   const surfaces = ['Skin', 'Shirt', 'Trousers', 'Arm_left', 'Arm_right'];
   for (const name of surfaces) {
     const surface = character.getObjectByName(name);
@@ -51,15 +52,12 @@ export function createFocusManga(scene, character, camera) {
           float bodySide = smoothstep(.38, .9, abs(n.x));
           float armSide = max((1. - smoothstep(-.82, -.12, n.y)), smoothstep(.45, .95, abs(n.x)));
           float shade = mix(bodySide, armSide, isArm);
-          float crease = restPoint.y * 23. + restPoint.x * 15. + restPoint.z * 9.;
-          float line = 1. - smoothstep(.14, .32, abs(sin(crease)));
-          float crossLine = 1. - smoothstep(.12, .27, abs(sin(restPoint.y * 30. - restPoint.x * 19.)));
-          float ink = shade * (.14 + .67 * line);
-          ink = max(ink, smoothstep(.75, 1., shade) * (.3 + .3 * crossLine));
-          vec2 uv = vec2(restPoint.x / 1.25 + .5, (restPoint.y - 1.58) / 2.2);
-          float front = smoothstep(.15, .6, n.z);
-          if (isShirt > .5 && uv.y > 0. && uv.y < 1.)
-            ink = max(ink, texture2D(bodyInk, uv).a * front * .85);
+          vec2 bodyUV = vec2(atan(restPoint.z, restPoint.x) / 6.28318 + .5, restPoint.y / 2.4);
+          vec2 armUV = vec2(abs(restPoint.x) / 1.4, atan(n.z, n.y) / 6.28318 + .5);
+          float strokes = texture2D(bodyInk, mix(bodyUV, armUV, isArm)).a;
+          float ink = shade * (.10 + .8 * strokes);
+          // A little ink reaches the outer shirt folds while its center remains clear.
+          ink = max(ink, isShirt * smoothstep(.15, .5, abs(restPoint.x)) * strokes * .65);
           gl_FragColor = vec4(.065, .055, .08, ink);
           #include <colorspace_fragment>
         }

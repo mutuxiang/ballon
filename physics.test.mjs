@@ -67,7 +67,11 @@ for(const direction of [-1,1]){
   assert.ok(Math.abs(headTangent.y)<.02,'The head must finish horizontally in the sideways U');
   assert.ok(headTangent.x*direction<-.18,'The top of the U must curl back toward its open side');
   assert.ok(dodging.nodes[24].p.y>3,'The sideways U must keep the head above the base');
-  for(let i=5;i<30;i++)stepBoth();
+  assert.equal(dodging.dodgeMotion,null,'The U pose must release to physics immediately');
+  const releasedHead=dodging.nodes[24].p.clone();
+  stepBoth();
+  assert.ok(dodging.nodes[24].p.distanceTo(releasedHead)<.1,'Physics must resume continuously from the bent pose');
+  for(let i=6;i<30;i++)stepBoth();
   assert.equal(dodging.dodgeMotion,null,'The dodge must finish and release the solver');
   assert.ok(dodging.nodes[24].p.y>4,'The body must recover its upright pose');
 }

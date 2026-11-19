@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 
 // Vector artwork rasterized at runtime: no remote images, fonts or loading race.
-// Keep the original geometry, followed by the uploaded references.
+// Eight expressions based on the uploaded references.
 export const SKINS = [
-  {id:'original', name:'原版表情', eyes:'original', mouth:'original', note:'项目原版 · 保留最初的五官网格'},
   {id:'chill', name:'淡定摸鱼', eyes:'sleepy', mouth:'line', note:'半睁眼 · 一切尽在掌握'},
   {id:'pout', name:'嘟嘴营业', eyes:'sleepy', mouth:'pout', note:'半睁眼 · 嘟起小嘴'},
   {id:'smile', name:'微笑营业', eyes:'sleepy', mouth:'smile', note:'半睁眼 · 嘴角上扬'},
@@ -29,27 +28,13 @@ export function drawFace(ctx, skin, {skinColor='#ffc9ae',noseColor=PINK}={}) {
     // White eye highlights and teeth are filled shapes, not outlined strokes.
     if(outline&&fill!==PAPER){
       ctx.save();
-      if(skin.id==='original')ctx.lineWidth=ORIGINAL_STROKE;
-      else{
-        // Build the path in reference coordinates, then stroke in texture pixels.
-        // This prevents the tilt correction from thickening some directions.
-        ctx.setTransform(1,0,0,1,0,0);ctx.lineWidth=FACE_STROKE*2.65;
-      }
+      // Build the path in reference coordinates, then stroke in texture pixels.
+      // This prevents the tilt correction from thickening some directions.
+      ctx.setTransform(1,0,0,1,0,0);ctx.lineWidth=FACE_STROKE*2.65;
       ctx.stroke();ctx.restore();
     }
   };
   const oval=(x,y,rx,ry,fill)=>{ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();};
-  if(skin.id==='original'){
-    // Thumbnail only. The actual original expression uses its unchanged meshes.
-    ctx.transform(512/1.18,0,0,-576/1.27,256,(5.31-(.64+(7.05-.64)*4.9/7.6))/1.27*576);
-    for(const [x,sign] of [[-.255,-1],[.255,1]]){
-      oval(x,.20,.19,.205,'#19221d');oval(x,.20,.19-ORIGINAL_STROKE,.205-ORIGINAL_STROKE,'#fff9ec');oval(x+.015,.195,.073,.076,'#19221d');
-      ctx.strokeStyle='#19221d';path(()=>{ctx.moveTo(x-.16,.218-sign*.027);ctx.quadraticCurveTo(x,.24,x+.16,.218+sign*.027);},null);
-    }
-    path(()=>{ctx.moveTo(.025,-.075);ctx.bezierCurveTo(-.08,-.09,-.09,-.25,.055,-.21);},null);
-    path(()=>{ctx.moveTo(.045,-.38);ctx.bezierCurveTo(-.22,-.35,-.26,-.55,.005,-.52);ctx.bezierCurveTo(-.21,-.55,-.19,-.70,.09,-.655);},null);
-    ctx.restore();return;
-  }
   // Trace in reference-image coordinates. Remove the photographed head's tilt
   // once, before wrapping onto the cylinder; all shared landmarks stay aligned.
   ctx.transform(2.65,.38425,0,2.65,256-306*2.65,190-207*2.65-306*.38425);
@@ -147,7 +132,7 @@ export function createSkins(character) {
   const material=new THREE.MeshBasicMaterial({map:textures[0],transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   material.userData.outlineParameters={visible:false};
   const mesh=new THREE.Mesh(geo,material);mesh.name='Expression_print';mesh.frustumCulled=false;mesh.renderOrder=2;character.add(mesh);
-  const focusTexture=new THREE.TextureLoader().load('./focus-expression-hatched.png');focusTexture.colorSpace=THREE.SRGBColorSpace;focusTexture.anisotropy=4;focusTexture.repeat.set(.85,.65);focusTexture.offset.set(.075,.19);
+  const focusTexture=new THREE.TextureLoader().load('./focus-expression-ink-v3.png');focusTexture.colorSpace=THREE.SRGBColorSpace;focusTexture.anisotropy=4;focusTexture.repeat.set(.85,.65);focusTexture.offset.set(.075,.19);
   let focused=false;
   let active=SKINS[0].id;
   function redraw(){
@@ -165,7 +150,7 @@ export function createSkins(character) {
       redraw();
     },
     setSurfaceGradient(value){const next=Boolean(value);if(next===surfaceGradient)return;surfaceGradient=next;redraw();},
-    select(id){const index=SKINS.findIndex(s=>s.id===id);if(index<0)return false;material.map=focused?focusTexture:textures[index];mesh.visible=focused||id!=='original';for(const name of ['Original_face_ink','Original_face_white'])character.getObjectByName(name).visible=!focused&&id==='original';active=id;character.userData.skin=id;return true;},
+    select(id){const index=SKINS.findIndex(s=>s.id===id);if(index<0)return false;material.map=focused?focusTexture:textures[index];mesh.visible=true;for(const name of ['Original_face_ink','Original_face_white'])character.getObjectByName(name).visible=false;active=id;character.userData.skin=id;return true;},
     thumbnail(index){return textures[index].image.toDataURL('image/png');}
   };
 }

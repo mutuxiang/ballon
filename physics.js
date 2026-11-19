@@ -2,7 +2,7 @@ import * as T from 'three';
 import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
-const DODGE_DURATION=.23;
+const DODGE_DURATION=.04;
 const DEFLATION_RATE=1;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
@@ -82,8 +82,7 @@ export class AirPhysics {
     if(this.dodgeMotion){
       const motion=this.dodgeMotion;
       const elapsed=this.time-motion.start;
-      const bend=elapsed<.04?T.MathUtils.smoothstep(elapsed,0,.04):
-        1-T.MathUtils.smoothstep(elapsed,.04,DODGE_DURATION);
+      const bend=T.MathUtils.smoothstep(elapsed,0,DODGE_DURATION);
       const position=ns[1].p.clone();
       for(let i=2;i<=24;i++){
         // Ease out of the fixed base, then trace a sideways U with a horizontal head.
@@ -91,7 +90,9 @@ export class AirPhysics {
         position.x+=motion.direction*Math.sin(angle)*4.9/24;
         position.y+=Math.cos(angle)*4.9/24;
         ns[i].p.copy(motion.pose[i]).lerp(position,bend);
+        // Release from the bent pose with a bounded sideways impulse; the solver handles recovery.
         ns[i].old.copy(ns[i].p);
+        if(elapsed>=DODGE_DURATION)ns[i].old.x-=motion.direction*.006*(i/24);
       }
       if(elapsed>=DODGE_DURATION)this.dodgeMotion=null;
     }

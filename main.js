@@ -76,13 +76,13 @@ function selectOutfit(id){
 let savedOutfit;try{savedOutfit=localStorage.getItem('air-worker-outfit');}catch{}
 selectOutfit(OUTFITS.some(outfit=>outfit.id===savedOutfit)?savedOutfit:'plain');
 const skinPanel=document.createElement('section');skinPanel.className='skin-picker';skinPanel.setAttribute('aria-label','表情皮肤');
-skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>原版 + ${SKINS.length-1} 款参考表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换，不使用原版表情；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
+skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>${SKINS.length} 款表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
 document.querySelector('#air-states').append(skinPanel);
 const skinGrid=skinPanel.querySelector('.skin-grid');
 const motionExpressions=createMotionExpressions((id,reason)=>applySkin(id,reason));
 let manualSkinId=SKINS[0].id;
 SKINS.forEach((skin,index)=>{
-  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=(index===0?'项目原版':'参考图 '+index)+' · '+skin.note;
+  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=('参考图 '+(index+1))+' · '+skin.note;
   const image=document.createElement('img');image.src=skins.thumbnail(index);image.alt='';image.width=76;image.height=76;
   const label=document.createElement('span');label.textContent=skin.name;button.append(image,label);
   button.onclick=()=>selectSkin(skin.id);skinGrid.append(button);
