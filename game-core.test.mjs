@@ -23,6 +23,15 @@ test('beginner pacing provides time to read notes and a forgiving timing window'
 });
 test('object center reaches visible judgment circle at the scheduled time',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt;g.update(0,body);assert.ok(Math.abs(Math.hypot(o.x-g.anchor.x,o.y-g.anchor.y)-g.ringRadius)<1e-8);});
 test('correct action at line gives perfect and one deflection; cannot score twice',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt;g.update(0,body);assert.ok(g.perform(o.action));assert.equal(g.score,20);assert.equal(g.combo,1);assert.equal(o.safe,true);assert.equal(g.perform(o.action),false);assert.equal(g.score,20);});
+test('resolved hazards disappear after blocking or hitting, including during damage immunity',()=>{
+  const g=setup(),o=g.items[0];g.time=o.hitAt;assert.ok(g.perform(o.action,o.side));assert.equal(o.removed,true);
+  g.update(0,body);assert.equal(g.items.length,0);assert.equal(g.events.filter(e=>e.type==='hit').length,1);
+  for(const immune of [false,true]){
+    const h=setup(),note=h.items[0];h.invulnerable=immune?1:0;h.time=note.hitAt+.7;h.update(0,body);
+    assert.equal(h.items.length,0);assert.equal(note.removed,true);assert.equal(h.air,immune?100:72);
+    advance(h,1);assert.equal(h.air,immune?100:72);
+  }
+});
 test('good window allows a little timing error, early input never pre-arms a block',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt-.6;assert.equal(g.perform(o.action),false);assert.equal(o.safe,false);g.time=o.hitAt+PERFECT_WINDOW+.03;assert.ok(g.perform(o.action));assert.equal(g.score,10);});
 test('wrong move fails the note even if followed by the right one; misses leak instead of instant death',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt;assert.equal(g.perform('rotate'),false);assert.equal(o.failed,true);advance(g,.2);assert.equal(g.perform(o.action),false);advance(g,.6);assert.equal(g.air,72);assert.equal(g.over,false);});
 test('doing nothing or holding a pedal does not block; passing window resets combo',()=>{const g=setup(),o=g.items[0];g.combo=3;g.set('left',true);g.time=o.hitAt+HIT_WINDOW+.01;g.update(0,body);assert.equal(o.failed,true);assert.equal(g.combo,0);assert.equal(o.safe,false);advance(g,.7);assert.equal(g.air,72);});

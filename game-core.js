@@ -65,8 +65,7 @@ export class WorkGame {
   }
   release(){this.feet.left=this.feet.right=false;}
   deflect(o,direction,burst=false,points=10){
-    if(o.safe)return;o.safe=true;const len=Math.hypot(direction.x,direction.y)||1;
-    o.vx=direction.x/len*400;o.vy=direction.y/len*400;o.spin=(direction.x<0?-1:1)*5;this.score+=points;
+    if(o.safe)return;o.safe=true;o.removed=true;this.score+=points;
     if(!burst){const ready=this.ultimateReady;this.ultimateHits=Math.min(ULTIMATE_HITS,this.ultimateHits+1);if(!ready&&this.ultimateReady)this.events.push({type:'ultimate-ready'});}
     this.events.push({type:'hit',x:o.x,y:o.y});
   }
@@ -83,11 +82,11 @@ export class WorkGame {
       o.x=this.anchor.x+o.dx*radius;o.y=this.anchor.y+o.dy*radius;
       if(!o.failed&&this.time>o.hitAt+HIT_WINDOW){o.failed=true;this.combo=0;this.events.push({type:'judge',text:'MISS',quality:'miss'});}
       if(o.failed&&this.time>o.hitAt+.65){
-        o.safe=true;o.vx=o.dx*120;o.vy=o.dy*120;
+        o.safe=true;o.removed=true;
         if(this.invulnerable<=0){this.air=Math.max(0,this.air-28);this.invulnerable=.6;this.events.push({type:'leak',x:o.x,y:o.y});
           if(this.air<=0&&!this.practiceMode){this.over=true;this.release();this.events.push({type:'pop'});break;}}
       }
     }
-    this.items=this.items.filter(o=>o.age<14&&o.y<1100&&o.y>-450&&Math.abs(o.x)<this.halfWidth+450);
+    this.items=this.items.filter(o=>!o.removed&&o.age<14&&o.y<1100&&o.y>-450&&Math.abs(o.x)<this.halfWidth+450);
   }
 }

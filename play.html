@@ -1,9 +1,15 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>下班健身操 · AIR / PLAY</title></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>工作间隙 · AIR / BREAK</title></head>
 <body><main id="game"><div id="world" aria-hidden="true"></div><canvas id="effects" aria-label="保护充气打工人的游玩区域"></canvas>
-<header><a href="./index.html" class="brand">AIR / PLAY <span>下班健身操</span></a><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏 ↗</button></div></header>
-<aside class="scoreboard"><span class="eyebrow">OFF THE CLOCK</span><div><strong id="score">0000</strong><small>分</small></div><p>已守护 <b id="time">00:00</b> <span> / </span> 第 <b id="wave">01</b> 波</p><div class="air-meter"><span>气量 <b id="air-label">100%</b></span><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div><p class="best">最佳纪录 <b id="best">0</b></p></aside>
-<div id="move-cue" hidden aria-label="接下来的动作"></div><div id="toast" role="status">今天，也要好好下班。</div>
+<header><a href="./index.html" class="brand">AIR / BREAK <span>工作间隙</span></a><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏</button></div></header>
+<aside class="scoreboard" aria-label="工作间隙活动记录">
+  <div class="break-heading"><span class="eyebrow">A LITTLE BREAK</span><span class="break-stamp" aria-hidden="true">休</span></div>
+  <h2>工作<span>间隙</span></h2><p class="break-caption">给身体，一点空白。</p>
+  <div class="score-line"><span class="metric-label">活动积分</span><div><strong id="score">0000</strong><small>分</small></div></div>
+  <div class="break-stats"><div><span class="metric-label">已休息</span><b id="time">00:00</b></div><div><span class="metric-label">波次</span><b><span id="wave">01</span><small>波</small></b></div></div>
+  <div class="air-meter"><div><span>气量</span><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
+  <div class="best"><span>个人最佳</span><b id="best">0</b></div>
+</aside>
 <div class="energy" hidden><div><span>必杀 · 喘口气</span><span id="charge-label">击退 0 / 6 解锁</span></div><progress id="charge" max="6" value="0" aria-label="清场蓄力"></progress></div>
-<section id="overlay" class="overlay"><div class="card"><span class="eyebrow" id="card-tag">A LITTLE AIR. A LITTLE COURAGE.</span><h1 id="card-title">抖掉工作，<br>跟上节拍。</h1><p id="card-copy">左边来用左脚，右边来用右脚。<br>上方也分左右，到细圆环时按对应动作键。<br>连续命中积累必杀，解锁后连按空格清场。</p><button id="start" class="primary">开始跟拍 ↗</button><p class="card-hint">左脚 W/S/A/D · 右脚 I/K/J/L<br>前 / 后 / 左 / 右 · Q / U 旋转 · P 暂停</p></div></section>
+<section id="overlay" class="overlay"><div class="card"><span class="eyebrow" id="card-tag">WORK CAN WAIT A MOMENT.</span><h1 id="card-title">工作间隙，<br>动一小会。</h1><p id="card-copy">左边来用左脚，右边来用右脚。<br>上方也分左右，到细圆环时按对应动作键。<br>连续命中积累必杀，解锁后连按空格清场。</p><button id="start" class="primary">开始小休</button><p class="card-hint">左脚 W/S/A/D · 右脚 I/K/J/L<br>前 / 后 / 左 / 右 · Q / U 旋转 · P 暂停</p></div></section>
 </main><script type="module" src="./game.js"></script></body></html>
