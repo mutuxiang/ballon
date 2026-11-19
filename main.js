@@ -1,4 +1,5 @@
 import {createMangaMotion} from './manga-motion.js';
+import {createFocusManga} from './focus-manga.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -19,7 +20,7 @@ const petMode=new URLSearchParams(location.search).has('pet');
 if(petMode){document.documentElement.classList.add('desktop-pet');const style=document.createElement('style');style.textContent='html.desktop-pet,html.desktop-pet body{background:transparent!important;overflow:hidden} .desktop-pet main{min-height:0;height:100vh} .desktop-pet header,.desktop-pet .intro,.desktop-pet .hint,.desktop-pet .air-states,.desktop-pet .controls,.desktop-pet #progress{display:none!important}';document.head.append(style);}
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#edf0eb');
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:petMode});
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 if(petMode){scene.background=null;renderer.setClearColor(0,0);}
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -53,6 +54,7 @@ const clothing=createClothing(character,{onPaletteChange:palette=>{
   document.documentElement.style.setProperty('--skin-tone',palette.skinColor);
   document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
 }});
+const focusManga=createFocusManga(scene,character,camera);
 const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMode?.32:1});
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
@@ -74,13 +76,13 @@ function selectOutfit(id){
 let savedOutfit;try{savedOutfit=localStorage.getItem('air-worker-outfit');}catch{}
 selectOutfit(OUTFITS.some(outfit=>outfit.id===savedOutfit)?savedOutfit:'plain');
 const skinPanel=document.createElement('section');skinPanel.className='skin-picker';skinPanel.setAttribute('aria-label','表情皮肤');
-skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>原版 + ${SKINS.length-1} 款参考表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换，不使用原版表情；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
+skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>${SKINS.length} 款表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
 document.querySelector('#air-states').append(skinPanel);
 const skinGrid=skinPanel.querySelector('.skin-grid');
 const motionExpressions=createMotionExpressions((id,reason)=>applySkin(id,reason));
 let manualSkinId=SKINS[0].id;
 SKINS.forEach((skin,index)=>{
-  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=(index===0?'项目原版':'参考图 '+index)+' · '+skin.note;
+  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=('参考图 '+(index+1))+' · '+skin.note;
   const image=document.createElement('img');image.src=skins.thumbnail(index);image.alt='';image.width=76;image.height=76;
   const label=document.createElement('span');label.textContent=skin.name;button.append(image,label);
   button.onclick=()=>selectSkin(skin.id);skinGrid.append(button);
@@ -135,7 +137,7 @@ async function selectState(id){
   description.textContent='正在切换充气状态…';
   document.querySelector('#error').textContent='';
   try{
-    if(active!==id&&(active==='none'||id==='none'))simulation.mangaTransition=2.8;
+    if(active!==id&&(active==='none'||id==='none'))simulation.mangaTransition=id==='none'?4:2.8;
     active=id;current=character;simulation.setState(id);
     for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.air===id));
     description.textContent=states[id].description;status.textContent=states[id].status;
@@ -163,15 +165,76 @@ const haloGeometry=new THREE.BufferGeometry(),haloPositions=[];
 for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;haloPositions.push(Math.cos(a)*r,Math.sin(a)*r,0,Math.cos(a)*R,Math.sin(a)*R,0);}
 haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
-const pedals=mountPedals({selectState,simulation,petMode,camera});
+const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
-  let dragging=false;
-  renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
-  renderer.domElement.addEventListener('pointermove',()=>{if(dragging)window.desktopPet.drag('move');});
-  renderer.domElement.addEventListener('pointerup',()=>{dragging=false;window.desktopPet.drag('end');});
+  const canvas=renderer.domElement;
+  const body=simulation.nodes.slice(3);
+  const arms=simulation.arms.flatMap(arm=>arm.nodes.slice(1));
+  const projected=new THREE.Vector3();
+  let dragPointer=null,previousPointer=null,dodged=false;
+
+  function reactToApproach(event){
+    const point={x:event.clientX,y:event.clientY};
+    const previous=previousPointer;
+    previousPointer=point;
+    if(!previous)return;
+
+    // Compare both mouse positions against the same pose so swaying alone cannot trigger a dodge.
+    const pixelsPerUnit=innerWidth/(camera.right-camera.left);
+    let gap=Infinity,previousGap=Infinity,closestX=0;
+    function measure(node,radius){
+      projected.copy(node.p).project(camera);
+      const x=(projected.x+1)*innerWidth/2;
+      const y=(1-projected.y)*innerHeight/2;
+      const radiusPx=radius*pixelsPerUnit;
+      const distance=Math.hypot(point.x-x,point.y-y)-radiusPx;
+      if(distance<gap){gap=distance;closestX=x;}
+      previousGap=Math.min(previousGap,Math.hypot(previous.x-x,previous.y-y)-radiusPx);
+    }
+    for(const node of body)measure(node,simulation.bodyRadius(node));
+    for(const node of arms)measure(node,.12+.12*node.pressure);
+
+    if(gap>32&&gap>previousGap)dodged=false;
+    if(dodged||gap>16||previousGap-gap<1)return;
+    const offset=point.x-closestX;
+    const side=Math.abs(offset)>3?offset:previous.x-closestX;
+    dodged=simulation.dodge(side<0?1:-1);
+  }
+
+  function endDrag(event){
+    if(dragPointer===null||(event&&event.pointerId!==dragPointer))return;
+    const pointerId=dragPointer;
+    dragPointer=null;
+    window.desktopPet.drag('end');
+    if(canvas.hasPointerCapture(pointerId))canvas.releasePointerCapture(pointerId);
+  }
+
+  canvas.addEventListener('pointerdown',event=>{
+    if(event.button!==0||dragPointer!==null)return;
+    dragPointer=event.pointerId;
+    previousPointer=null;
+    canvas.setPointerCapture(event.pointerId);
+    window.desktopPet.drag('start');
+  });
+  canvas.addEventListener('pointermove',event=>{
+    if(event.pointerId===dragPointer){
+      if(event.buttons&1)window.desktopPet.drag('move');
+      else endDrag(event);
+    }else if(dragPointer===null){
+      if(playing&&event.pointerType==='mouse'&&event.buttons===0)reactToApproach(event);
+      else previousPointer=null;
+    }
+  });
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,endDrag);
+  canvas.addEventListener('pointerleave',()=>{previousPointer=null;dodged=false;});
+  window.addEventListener('blur',()=>{
+    endDrag();
+    previousPointer=null;
+    dodged=false;
+  });
 }
 let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
@@ -180,7 +243,8 @@ renderer.setAnimationLoop(()=>{
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);
-  focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
+  focusManga.update(playing?dt*speed:0,simulation);
+  focusSprite.visible=false;const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
   if(simulation.superMode&&performance.now()-lastInkSample>700){lastInkSample=performance.now();const pos=focusSprite.position.clone().project(camera);window.desktopPet?.sample({x:(pos.x+1)*innerWidth/2,y:(1-pos.y)*innerHeight/2});}
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004,falling=head.p.y-head.old.y<-.0003;

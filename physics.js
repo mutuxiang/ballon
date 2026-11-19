@@ -2,6 +2,8 @@ import * as T from 'three';
 import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
+const DODGE_DURATION=.16;
+const DEFLATION_RATE=1;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
 export class AirPhysics {
@@ -14,6 +16,14 @@ export class AirPhysics {
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){const target={none:0,low:.72,high:1}[s];if(s==='low'&&target>this.target)this.lowBoost=1.6;this.target=target;}
+  get canDodge(){return (this.superMode||this.target>0)&&this.nodes[24].pressure>=.25;}
+  dodge(direction){
+    if(!this.canDodge||this.dodgeMotion)return false;
+    this.dodgeMotion={
+      direction,start:this.time,pose:this.nodes.map(node=>node.p.clone())
+    };
+    return true;
+  }
   update(dt){this.acc+=Math.min(dt,.1);while(this.acc>=1/120){this.step(1/120);this.acc-=1/120;}this.deform();}
   solveDistance(a,b,length,strength=1,fixed=false){const d=b.p.clone().sub(a.p),len=d.length();if(len<1e-7)return;d.multiplyScalar((len-length)/len*strength);if(fixed)b.p.sub(d);else{a.p.addScaledVector(d,.5);b.p.addScaledVector(d,-.5);}}
   integrate(n,force,h){const v=n.p.clone().sub(n.old).multiplyScalar(.993);n.old.copy(n.p);n.p.add(v).addScaledVector(force,h*h);}
@@ -28,13 +38,17 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
+    if(this.dodgeMotion&&!this.canDodge)this.dodgeMotion=null;
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
     this.wind.clampLength(0,2.2);
     const ns=this.nodes;
     const fastLow=this.target===.72&&ns[0].pressure<this.target;
     this.lowBoost=Math.max(0,(this.lowBoost||0)-h);
-    ns[0].pressure+=((this.superMode?1:this.target)-ns[0].pressure)*h*(fastLow?7:2.6);
+    const inletTarget=this.superMode?1:this.target;
+    const inletDelta=inletTarget-ns[0].pressure;
+    const inletRate=inletDelta<0?DEFLATION_RATE:(fastLow?7:2.6);
+    ns[0].pressure+=inletDelta*h*inletRate;
     for(let i=24;i>0;i--){
       const n=ns[i],d=n.p.clone().sub(ns[i-1].p).normalize();
       const prev=i>1?ns[i-1].p.clone().sub(ns[i-2].p).normalize():UP;
@@ -68,6 +82,23 @@ export class AirPhysics {
         if((i-j)*4.9/24<min*1.15)continue;
         this.repelSegment(b,a,ns[j+1],min);
       }
+    }
+    if(this.dodgeMotion){
+      const motion=this.dodgeMotion;
+      const elapsed=this.time-motion.start;
+      const bend=T.MathUtils.smoothstep(elapsed,0,DODGE_DURATION);
+      const position=ns[1].p.clone();
+      for(let i=2;i<=24;i++){
+        // Ease out of the fixed base, then trace a sideways U with a horizontal head.
+        const angle=i<=4?(i-1)/3*Math.PI/2:Math.PI/2-(i-4)/20*Math.PI;
+        position.x+=motion.direction*Math.sin(angle)*4.9/24;
+        position.y+=Math.cos(angle)*4.9/24;
+        ns[i].p.copy(motion.pose[i]).lerp(position,bend);
+        // Release from the bent pose with a bounded sideways impulse; the solver handles recovery.
+        ns[i].old.copy(ns[i].p);
+        if(elapsed>=DODGE_DURATION)ns[i].old.x-=motion.direction*.006*(i/24);
+      }
+      if(elapsed>=DODGE_DURATION)this.dodgeMotion=null;
     }
     const shoulder=this.sample(SHOULDER_Y);
     for(const arm of this.arms){
