@@ -4,3 +4,4 @@
 .air-meter{display:flex;flex-direction:column;gap:7px;font-size:10px;margin-top:20px}.air-meter progress{width:150px;height:7px;accent-color:#6e9585}
 
 .tools select{font:inherit;font-size:11px;border:1px solid #34494055;background:#fffaf0eb;color:#293c36;border-radius:20px;padding:8px;max-width:150px}.energy{width:260px;padding:12px 15px;background:#f8f4e9e6;border:1px solid #34494033;border-radius:10px}.energy.ready{border-color:#406e60;background:#e4eddf}.scoreboard{background:#f8f4e9d9;padding:15px 18px;border-radius:10px;left:24px}.footnote{background:#f8f4e9dc;padding:10px 16px;border-radius:8px}.card-hint{max-width:340px}@media(max-width:700px){.tools{gap:4px}.tools select{max-width:102px;font-size:9px}.tools button{padding:7px;font-size:10px}.scoreboard{left:14px;padding:10px}.energy{width:230px}.card-hint{max-width:280px}}
+.energy[hidden],#toast[hidden]{display:none}.energy{bottom:32px;pointer-events:none}@media(max-width:700px){.energy{bottom:20px}}
