@@ -2,7 +2,7 @@ import * as T from 'three';
 import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
-const DODGE_DURATION=.04;
+const DODGE_DURATION=.16;
 const DEFLATION_RATE=1;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.

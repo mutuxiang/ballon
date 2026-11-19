@@ -75,7 +75,7 @@ for(const direction of [-1,1]){
   const stepBoth=()=>{baseline.step(1/120);dodging.step(1/120);};
   for(let i=0;i<240;i++)stepBoth();
   dodging.dodge(direction);
-  for(let i=0;i<5;i++)stepBoth();
+  for(let i=0;i<20;i++)stepBoth();
   assert.ok((dodging.nodes[12].p.x-baseline.nodes[12].p.x)*direction>1,'The middle of the body must bend toward either side on cue');
   assert.deepEqual(dodging.nodes[0].p,baseline.nodes[0].p,'The base must stay planted');
   const headTangent=dodging.nodes[24].p.clone().sub(dodging.nodes[23].p);
@@ -86,7 +86,7 @@ for(const direction of [-1,1]){
   const releasedHead=dodging.nodes[24].p.clone();
   stepBoth();
   assert.ok(dodging.nodes[24].p.distanceTo(releasedHead)<.1,'Physics must resume continuously from the bent pose');
-  for(let i=6;i<30;i++)stepBoth();
+  for(let i=21;i<45;i++)stepBoth();
   assert.equal(dodging.dodgeMotion,null,'The dodge must finish and release the solver');
   assert.ok(dodging.nodes[24].p.y>4,'The body must recover its upright pose');
 }
