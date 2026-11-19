@@ -86,8 +86,8 @@ export class AirPhysics {
         (1-T.MathUtils.smoothstep(elapsed,.6,DODGE_DURATION));
       const position=ns[1].p.clone();
       for(let i=2;i<=24;i++){
-        // A half-turn of the spine makes a broad hairpin with the head pointing down.
-        const angle=(i-1)/23*Math.PI;
+        // Ease out of the fixed base, then trace a sideways U with a horizontal head.
+        const angle=i<=4?(i-1)/3*Math.PI/2:Math.PI/2-(i-4)/20*Math.PI;
         position.x+=motion.direction*Math.sin(angle)*4.9/24;
         position.y+=Math.cos(angle)*4.9/24;
         ns[i].p.copy(motion.pose[i]).lerp(position,bend);

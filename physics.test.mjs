@@ -61,12 +61,13 @@ for(const direction of [-1,1]){
   for(let i=0;i<240;i++)stepBoth();
   dodging.dodge(direction);
   for(let i=0;i<24;i++)stepBoth();
-  const headOffset=()=>dodging.nodes[24].p.x-baseline.nodes[24].p.x;
-  assert.ok(headOffset()*direction>.8,'The upper body must bend toward either side on cue');
+  assert.ok((dodging.nodes[12].p.x-baseline.nodes[12].p.x)*direction>1,'The middle of the body must bend toward either side on cue');
   assert.deepEqual(dodging.nodes[0].p,baseline.nodes[0].p,'The base must stay planted');
   for(let i=24;i<48;i++)stepBoth();
-  assert.ok(dodging.nodes[24].p.y<1,'The head must fold down into an exaggerated U bend');
-  assert.ok(dodging.nodes[24].p.y<dodging.nodes[23].p.y,'The head must point down at the end of the U');
+  const headTangent=dodging.nodes[24].p.clone().sub(dodging.nodes[23].p);
+  assert.ok(Math.abs(headTangent.y)<.02,'The head must finish horizontally in the sideways U');
+  assert.ok(headTangent.x*direction<-.18,'The top of the U must curl back toward its open side');
+  assert.ok(dodging.nodes[24].p.y>3,'The sideways U must keep the head above the base');
   for(let i=48;i<156;i++)stepBoth();
   assert.equal(dodging.dodgeMotion,null,'The dodge must finish and release the solver');
   assert.ok(dodging.nodes[24].p.y>4,'The body must recover its upright pose');

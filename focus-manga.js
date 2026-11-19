@@ -11,39 +11,34 @@ export function createFocusManga(scene, character, camera) {
   bubble.visible = false;
   scene.add(bubble);
 
-  // Ribbons use the same rest-space coordinates and deformation as the skin.
-  const vertices = [];
-  function stroke(x, y, dx, dy, width = .012) {
-    const length = Math.hypot(dx, dy);
-    const nx = -dy / length * width / 2;
-    const ny = dx / length * width / 2;
-    function point(a, b) {
-      const radius = .66 - .025 * (b - .64) / 4.9;
-      return [a, b, Math.sqrt(Math.max(.01, radius * radius - a * a)) + .03];
-    }
-    const a = point(x - nx, y - ny), b = point(x + nx, y + ny);
-    const c = point(x + dx, y + dy);
-    vertices.push(...a, ...b, ...c);
-  }
-  for (const sign of [-1, 1]) {
-    for (let i = 0; i < 18; i++) {
-      stroke(sign * (.43 + i % 3 * .028), 4.23 + i * .049, -sign * .10, -.12);
-    }
-    for (let i = 0; i < 13; i++) {
-      stroke(sign * (.21 + i * .022), 4.55 - i * .012, sign * .045, -.16);
-    }
-    for (let i = 0; i < 28; i++) {
-      stroke(sign * .56, 1.65 + i * .073, -sign * (.13 + .07 * Math.sin(i * .3)), -.18, .017);
-    }
-    for (let i = 0; i < 8; i++) {
-      stroke(sign * (.16 + i * .035), 3.61 - i * .025, sign * .06, -.18, .014);
+  // A subdivided decal wraps the generated ink around the shirt and follows the solver.
+  const vertices = [], uv = [], indices = [];
+  const columns = 32, rows = 52;
+  for (let row = 0; row <= rows; row++) {
+    for (let column = 0; column <= columns; column++) {
+      const u = column / columns, v = row / rows;
+      const x = (u - .5) * 1.25, y = 1.58 + v * 2.20;
+      const radius = .66 - .025 * (y - .64) / 4.9;
+      vertices.push(x, y, Math.sqrt(Math.max(.01, radius * radius - x * x)) + .022);
+      uv.push(u, v);
     }
   }
-  for (let i = 0; i < 20; i++) stroke(-.40 + i * .04, 5.13, .025, -.12 - .06 * Math.sin(i * .16));
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      const a = row * (columns + 1) + column, b = a + columns + 1;
+      indices.push(a, a + 1, b, b, a + 1, b + 1);
+    }
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const bodyTexture = new THREE.TextureLoader().load('./focus-body-hatched-v2.png');
+  bodyTexture.colorSpace = THREE.SRGBColorSpace;
+  bodyTexture.anisotropy = 4;
   const shading = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-    color: '#20202a', side: THREE.DoubleSide, transparent: true, opacity: .85,
+    map: bodyTexture, side: THREE.DoubleSide, transparent: true,
     depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2
   }));
   shading.name = 'Focus_ink_shadows';

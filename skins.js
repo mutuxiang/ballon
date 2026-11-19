@@ -147,7 +147,7 @@ export function createSkins(character) {
   const material=new THREE.MeshBasicMaterial({map:textures[0],transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   material.userData.outlineParameters={visible:false};
   const mesh=new THREE.Mesh(geo,material);mesh.name='Expression_print';mesh.frustumCulled=false;mesh.renderOrder=2;character.add(mesh);
-  const focusTexture=new THREE.TextureLoader().load('./focus-expression.png');focusTexture.colorSpace=THREE.SRGBColorSpace;focusTexture.anisotropy=4;focusTexture.repeat.set(.85,.65);focusTexture.offset.set(.075,.19);
+  const focusTexture=new THREE.TextureLoader().load('./focus-expression-hatched.png');focusTexture.colorSpace=THREE.SRGBColorSpace;focusTexture.anisotropy=4;focusTexture.repeat.set(.85,.65);focusTexture.offset.set(.075,.19);
   let focused=false;
   let active=SKINS[0].id;
   function redraw(){
