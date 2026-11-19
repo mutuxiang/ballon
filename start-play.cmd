@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-node play-preview.cjs
-pause
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-play.ps1"
+if errorlevel 1 pause
