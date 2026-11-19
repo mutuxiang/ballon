@@ -1,5 +1,4 @@
 import {createMangaMotion} from './manga-motion.js';
-import {mountAirGame} from './play-mode.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -136,7 +135,7 @@ async function selectState(id){
   description.textContent='正在切换充气状态…';
   document.querySelector('#error').textContent='';
   try{
-    if(active!==id&&(active==='none'||id==='none'))simulation.mangaTransition=2.8;
+    if(active!==id&&(active==='none'||id==='none'))simulation.mangaTransition=id==='none'?4:2.8;
     active=id;current=character;simulation.setState(id);
     for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.air===id));
     description.textContent=states[id].description;status.textContent=states[id].status;
@@ -164,22 +163,82 @@ const haloGeometry=new THREE.BufferGeometry(),haloPositions=[];
 for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;haloPositions.push(Math.cos(a)*r,Math.sin(a)*r,0,Math.cos(a)*R,Math.sin(a)*R,0);}
 haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
-const pedals=mountPedals({selectState,simulation,petMode,camera});
-const airGame=mountAirGame({renderer,scene,camera,controls,simulation,pedals,selectState,floor,ring,onPlaying:()=>{playing=true;speed=1;}});
+const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
-  let dragging=false;
-  renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0&&!airGame.active){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
-  renderer.domElement.addEventListener('pointermove',()=>{if(dragging)window.desktopPet.drag('move');});
-  renderer.domElement.addEventListener('pointerup',()=>{dragging=false;window.desktopPet.drag('end');});
+  const canvas=renderer.domElement;
+  const body=simulation.nodes.slice(3);
+  const arms=simulation.arms.flatMap(arm=>arm.nodes.slice(1));
+  const projected=new THREE.Vector3();
+  let dragPointer=null,previousPointer=null,dodged=false;
+
+  function reactToApproach(event){
+    const point={x:event.clientX,y:event.clientY};
+    const previous=previousPointer;
+    previousPointer=point;
+    if(!previous)return;
+
+    // Compare both mouse positions against the same pose so swaying alone cannot trigger a dodge.
+    const pixelsPerUnit=innerWidth/(camera.right-camera.left);
+    let gap=Infinity,previousGap=Infinity,closestX=0;
+    function measure(node,radius){
+      projected.copy(node.p).project(camera);
+      const x=(projected.x+1)*innerWidth/2;
+      const y=(1-projected.y)*innerHeight/2;
+      const radiusPx=radius*pixelsPerUnit;
+      const distance=Math.hypot(point.x-x,point.y-y)-radiusPx;
+      if(distance<gap){gap=distance;closestX=x;}
+      previousGap=Math.min(previousGap,Math.hypot(previous.x-x,previous.y-y)-radiusPx);
+    }
+    for(const node of body)measure(node,simulation.bodyRadius(node));
+    for(const node of arms)measure(node,.12+.12*node.pressure);
+
+    if(gap>32&&gap>previousGap)dodged=false;
+    if(dodged||gap>16||previousGap-gap<1)return;
+    const offset=point.x-closestX;
+    const side=Math.abs(offset)>3?offset:previous.x-closestX;
+    simulation.dodge(side<0?1:-1);
+    dodged=true;
+  }
+
+  function endDrag(event){
+    if(dragPointer===null||(event&&event.pointerId!==dragPointer))return;
+    const pointerId=dragPointer;
+    dragPointer=null;
+    window.desktopPet.drag('end');
+    if(canvas.hasPointerCapture(pointerId))canvas.releasePointerCapture(pointerId);
+  }
+
+  canvas.addEventListener('pointerdown',event=>{
+    if(event.button!==0||dragPointer!==null)return;
+    dragPointer=event.pointerId;
+    previousPointer=null;
+    canvas.setPointerCapture(event.pointerId);
+    window.desktopPet.drag('start');
+  });
+  canvas.addEventListener('pointermove',event=>{
+    if(event.pointerId===dragPointer){
+      if(event.buttons&1)window.desktopPet.drag('move');
+      else endDrag(event);
+    }else if(dragPointer===null){
+      if(playing&&event.pointerType==='mouse'&&event.buttons===0)reactToApproach(event);
+      else previousPointer=null;
+    }
+  });
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,endDrag);
+  canvas.addEventListener('pointerleave',()=>{previousPointer=null;dodged=false;});
+  window.addEventListener('blur',()=>{
+    endDrag();
+    previousPointer=null;
+    dodged=false;
+  });
 }
 let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
-  airGame.update(dt);
-  if(current&&playing&&!airGame.paused)simulation.update(dt*speed);
+  if(current&&playing)simulation.update(dt*speed);
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);

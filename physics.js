@@ -2,6 +2,8 @@ import * as T from 'three';
 import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
+const DODGE_DURATION=.45;
+const DEFLATION_RATE=1;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
 export class AirPhysics {
@@ -14,6 +16,9 @@ export class AirPhysics {
   }
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){const target={none:0,low:.72,high:1}[s];if(s==='low'&&target>this.target)this.lowBoost=1.6;this.target=target;}
+  dodge(direction){
+    if(!this.dodgeMotion)this.dodgeMotion={direction,start:this.time};
+  }
   update(dt){this.acc+=Math.min(dt,.1);while(this.acc>=1/120){this.step(1/120);this.acc-=1/120;}this.deform();}
   solveDistance(a,b,length,strength=1,fixed=false){const d=b.p.clone().sub(a.p),len=d.length();if(len<1e-7)return;d.multiplyScalar((len-length)/len*strength);if(fixed)b.p.sub(d);else{a.p.addScaledVector(d,.5);b.p.addScaledVector(d,-.5);}}
   integrate(n,force,h){const v=n.p.clone().sub(n.old).multiplyScalar(.993);n.old.copy(n.p);n.p.add(v).addScaledVector(force,h*h);}
@@ -28,13 +33,23 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
+    let dodgeForce=0;
+    if(this.dodgeMotion){
+      const phase=(this.time-this.dodgeMotion.start-h/2)/DODGE_DURATION;
+      // Push away, then ease back into the normal sway over one cycle.
+      if(phase<1)dodgeForce=this.dodgeMotion.direction*135*Math.cos(phase*2*Math.PI);
+      else this.dodgeMotion=null;
+    }
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
     this.wind.clampLength(0,2.2);
     const ns=this.nodes;
     const fastLow=this.target===.72&&ns[0].pressure<this.target;
     this.lowBoost=Math.max(0,(this.lowBoost||0)-h);
-    ns[0].pressure+=((this.superMode?1:this.target)-ns[0].pressure)*h*(fastLow?7:2.6);
+    const inletTarget=this.superMode?1:this.target;
+    const inletDelta=inletTarget-ns[0].pressure;
+    const inletRate=inletDelta<0?DEFLATION_RATE:(fastLow?7:2.6);
+    ns[0].pressure+=inletDelta*h*inletRate;
     for(let i=24;i>0;i--){
       const n=ns[i],d=n.p.clone().sub(ns[i-1].p).normalize();
       const prev=i>1?ns[i-1].p.clone().sub(ns[i-2].p).normalize():UP;
@@ -44,6 +59,7 @@ export class AirPhysics {
       const u=i/24,p=n.pressure;
       // Follower force from the internal jet, with vertical buoyant support.
       const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+(this.superMode?19:15)*p+(this.target===.72?6*this.lowBoost/1.6*p:0),this.wind.z*(1+u)*p-n.p.z*p*1.2);
+      force.x+=dodgeForce*u*u*(.4+.6*p);
       force.addScaledVector(d,5*p).addScaledVector(new T.Vector3(Math.sin(this.time*1.31+i*.13),0,Math.cos(this.time*.83+i*.11)),p*1.4*u);
       force.z*=this.depthMotion;
       this.integrate(n,force,h);

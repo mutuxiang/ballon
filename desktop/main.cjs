@@ -4,7 +4,7 @@ const {uIOhook,UiohookKey}=require('uiohook-napi');
 const {spawn}=require('node:child_process');
 let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
-let win,options={skins:[],outfits:[]},drag=null,gameBounds=null;
+let win,options={skins:[],outfits:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
@@ -31,17 +31,12 @@ app.whenReady().then(()=>{
   });
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
-  ipcMain.on('pet:game',(_e,active)=>{
-    if(active&&!gameBounds){endFocus();gameBounds=win.getBounds();win.setResizable(true);win.setFullScreen(true);win.focus();}
-    else if(!active&&gameBounds){win.setFullScreen(false);win.setBounds(gameBounds);win.setResizable(false);gameBounds=null;}
-  });
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
-  uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&gameBounds)send('game-exit');if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
+  uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');});
   uIOhook.start();
   ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
-    {label:'沉浸游玩 · 把压力踢出去',click:()=>send('game')},
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
