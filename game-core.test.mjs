@@ -5,6 +5,22 @@ const body=[{x:0,y:400,r:27},{x:0,y:650,r:27}];
 function setup(){const g=new WorkGame(()=>.5);g.update(0,body);g.spawnAttack();g.spawnIn=100;return g;}
 function advance(g,seconds){for(let t=0;t<seconds;t+=.01)g.update(.01,body);}
 test('attacks only originate top left and right; exercise phrase includes all five actions',()=>{const g=setup(),edges=new Set(),actions=new Set();g.items=[];for(let i=0;i<30;i++){g.spawnAttack();const o=g.items.at(-1);edges.add(o.edge);actions.add(o.action);assert.ok(o.dy<=.3);assert.ok(o.hitAt>g.time);}assert.deepEqual([...edges].sort(),[0,1,3]);assert.equal(actions.size,5);});
+test('each foot receives attacks from its own half, including overhead approaches',()=>{
+  for(const random of [0,.5,1])for(const width of [150,600]){
+    const g=new WorkGame(()=>random);g.setViewport(width);g.update(0,body);
+    for(let i=0;i<30;i++){
+      g.items=[];g.spawnAttack();g.spawnIn=100;const o=g.items[0],sign=o.side==='left'?-1:1;
+      assert.ok((o.x-g.anchor.x)*sign>0);assert.ok(o.dx*sign>0);
+      assert.ok(o.edge===0||o.edge===(o.side==='left'?3:1));
+      g.time=o.hitAt;g.update(0,body);assert.ok((o.x-g.anchor.x)*sign>0);
+    }
+  }
+});
+test('beginner pacing provides time to read notes and a forgiving timing window',()=>{
+  const g=setup();assert.equal(g.items[0].hitAt-g.time,3.6);assert.equal(g.beat,1.25);
+  g.wave=100;assert.equal(g.beat,.9);
+  for(const offset of [-.39,.39]){const h=setup(),o=h.items[0];h.time=o.hitAt+offset;assert.ok(h.perform(o.action,o.side));assert.equal(h.score,10);}
+});
 test('object center reaches visible judgment circle at the scheduled time',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt;g.update(0,body);assert.ok(Math.abs(Math.hypot(o.x-g.anchor.x,o.y-g.anchor.y)-g.ringRadius)<1e-8);});
 test('correct action at line gives perfect and one deflection; cannot score twice',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt;g.update(0,body);assert.ok(g.perform(o.action));assert.equal(g.score,20);assert.equal(g.combo,1);assert.equal(o.safe,true);assert.equal(g.perform(o.action),false);assert.equal(g.score,20);});
 test('good window allows a little timing error, early input never pre-arms a block',()=>{const g=setup(),o=g.items[0];g.time=o.hitAt-.6;assert.equal(g.perform(o.action),false);assert.equal(o.safe,false);g.time=o.hitAt+PERFECT_WINDOW+.03;assert.ok(g.perform(o.action));assert.equal(g.score,10);});

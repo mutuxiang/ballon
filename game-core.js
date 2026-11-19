@@ -1,4 +1,4 @@
-export const ULTIMATE_HITS=6,ULTIMATE_STEPS=6,HIT_WINDOW=.25,PERFECT_WINDOW=.09;
+export const ULTIMATE_HITS=6,ULTIMATE_STEPS=6,HIT_WINDOW=.4,PERFECT_WINDOW=.15;
 export const ACTIONS=['up','right','down','left','rotate'];
 export const ACTION_LABELS={up:'↑',down:'↓',left:'←',right:'→',rotate:'↻'};
 export function defenseAnchor(body){return {x:body.reduce((s,p)=>s+p.x,0)/body.length,y:body.reduce((s,p)=>s+p.y,0)/body.length};}
@@ -13,18 +13,21 @@ export class WorkGame {
   }
   get ultimateReady(){return this.ultimateHits>=ULTIMATE_HITS;}
   get ringRadius(){return Math.min(190,Math.max(100,this.halfWidth-24));}
-  get beat(){return Math.max(.68,.92-(this.wave-1)*.025);}
+  get beat(){return Math.max(.9,1.25-(this.wave-1)*.015);}
   get nextNote(){return this.items.filter(o=>!o.safe&&!o.failed).sort((a,b)=>a.hitAt-b.hitAt)[0];}
   setViewport(width){if(Number.isFinite(width))this.halfWidth=Math.max(120,width);}
   spawnAttack(){
     const phrase=['up','right','down','left','rotate','left','up','right','down','rotate'];
-    const action=phrase[this.attackIndex%phrase.length],edge=[0,1,3][this.attackIndex%3];
-    const x=edge===1?this.halfWidth+55:edge===3?-this.halfWidth-55:(this.random()-.5)*Math.min(400,this.halfWidth);
+    const action=phrase[this.attackIndex%phrase.length],side=this.attackIndex%2?'right':'left';
+    // Match the approach side to the required foot, including overhead notes.
+    const edge=this.attackIndex%3===0?0:side==='left'?3:1;
+    const overheadOffset=Math.min(this.halfWidth*.7,80+this.random()*160);
+    const x=edge===1?this.halfWidth+55:edge===3?-this.halfWidth-55:this.anchor.x+(side==='left'?-1:1)*overheadOffset;
     const y=edge===0?-55:this.anchor.y-100+this.random()*200;
     const dx=x-this.anchor.x,dy=y-this.anchor.y,distance=Math.hypot(dx,dy)||1;
-    const lead=2.8,speed=Math.max(40,(distance-this.ringRadius)/lead);
+    const lead=3.6,speed=Math.max(40,(distance-this.ringRadius)/lead);
     this.items.push({x,y,dx:dx/distance,dy:dy/distance,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%4,
-      side:this.attackIndex%2?'right':'left',r:18,angle:Math.atan2(-dy,-dx)-Math.PI/2,spin:0,vx:0,vy:0,safe:false,failed:false,age:0});
+      side,r:18,angle:Math.atan2(-dy,-dx)-Math.PI/2,spin:0,vx:0,vy:0,safe:false,failed:false,age:0});
     this.attackIndex++;
     // Rotation gets a whole extra beat before and after it.
     this.spawnIn=this.beat*((action==='rotate'||phrase[this.attackIndex%phrase.length]==='rotate')?2:1);
