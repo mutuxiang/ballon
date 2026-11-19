@@ -1,15 +1,25 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>工作间隙 · AIR / BREAK</title></head>
-<body><main id="game"><div id="world" aria-hidden="true"></div><canvas id="effects" aria-label="保护充气打工人的游玩区域"></canvas>
-<header><a href="./index.html" class="brand">AIR / BREAK <span>工作间隙</span></a><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏</button></div></header>
+<body><main id="game" data-phase="ready"><div id="world" aria-hidden="true"></div><canvas id="effects" aria-label="保护充气打工人的游玩区域"></canvas>
+<header><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏</button></div></header>
 <aside class="scoreboard" aria-label="工作间隙活动记录">
-  <div class="break-heading"><span class="eyebrow">A LITTLE BREAK</span><span class="break-stamp" aria-hidden="true">休</span></div>
-  <h2>工作<span>间隙</span></h2><p class="break-caption">给身体，一点空白。</p>
   <div class="score-line"><span class="metric-label">活动积分</span><div><strong id="score">0000</strong><small>分</small></div></div>
   <div class="break-stats"><div><span class="metric-label">已休息</span><b id="time">00:00</b></div><div><span class="metric-label">波次</span><b><span id="wave">01</span><small>波</small></b></div></div>
   <div class="air-meter"><div><span>气量</span><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
   <div class="best"><span>个人最佳</span><b id="best">0</b></div>
 </aside>
 <div class="energy" hidden><div><span>必杀 · 喘口气</span><span id="charge-label">击退 0 / 6 解锁</span></div><progress id="charge" max="6" value="0" aria-label="清场蓄力"></progress></div>
-<section id="overlay" class="overlay"><div class="card"><span class="eyebrow" id="card-tag">WORK CAN WAIT A MOMENT.</span><h1 id="card-title">工作间隙，<br>动一小会。</h1><p id="card-copy">左边来用左脚，右边来用右脚。<br>上方也分左右，到细圆环时按对应动作键。<br>连续命中积累必杀，解锁后连按空格清场。</p><button id="start" class="primary">开始小休</button><p class="card-hint">左脚 W/S/A/D · 右脚 I/K/J/L<br>前 / 后 / 左 / 右 · Q / U 旋转 · P 暂停</p></div></section>
+<section id="overlay" class="overlay" aria-labelledby="card-title"><div class="card">
+  <div class="welcome-kicker"><span class="welcome-tag">工作间隙</span><span class="eyebrow" id="card-tag">TAKE A LITTLE BREAK</span></div>
+  <span class="welcome-stamp" aria-hidden="true">松口气!</span>
+  <h1 id="card-title">工作放一放，<br><em>身体动一动。</em></h1>
+  <p id="card-copy">左边来，动左脚。右边来，动右脚。<br>看清物品上的动作，在细圆环处跟上节拍。</p>
+  <div class="control-guide" aria-label="键盘操作说明">
+    <div><b>左脚</b><span><kbd>W</kbd><kbd>S</kbd><kbd>A</kbd><kbd>D</kbd></span><small><kbd>Q</kbd> 旋转</small></div>
+    <div><b>右脚</b><span><kbd>I</kbd><kbd>K</kbd><kbd>J</kbd><kbd>L</kbd></span><small><kbd>U</kbd> 旋转</small></div>
+    <p>按键依次为前 / 后 / 左 / 右</p>
+  </div>
+  <button id="start" class="primary">开始小休<span aria-hidden="true">▶</span></button>
+  <p class="card-hint">击退 6 件解锁必杀 · 连按空格蓄力清场<br>随时按 P 暂停，慢慢找节奏。</p>
+</div></section>
 </main><script type="module" src="./game.js"></script></body></html>
