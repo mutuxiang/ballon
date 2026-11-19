@@ -15,7 +15,7 @@ const $=s=>document.querySelector(s), game=new WorkGame();
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('#world').append(renderer.domElement);
-const camera=new THREE.OrthographicCamera(-10,10,13.2,-1.8,.1,100);camera.position.set(0,0,20);camera.lookAt(0,0,0);
+const camera=new THREE.OrthographicCamera(-10,10,9.5,-2,.1,100);camera.position.set(0,0,20);camera.lookAt(0,0,0);
 const character=createDancer({rest:true,separateFace:true}).group;applyToon(character);scene.add(character);
 const skins=createSkins(character);const clothing=createClothing(character,{onPaletteChange:p=>skins.setPalette(p)});clothing.select('pastel');
 const skinGradient=createSkinGradient(character,skins);skinGradient.setEnabled(true);
@@ -30,7 +30,7 @@ let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
 const axisLatch={left:null,right:null};const heldKeys=new Set();
 try{best=Number(localStorage.getItem('air-worker-best')||0)||0;}catch{}$('#best').textContent=best;
-function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h;camera.left=-7.5*ratio;camera.right=7.5*ratio;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';}
+function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(11.5,6.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';}
 addEventListener('resize',resize);resize();
 function project(v){const p=v.clone().project(camera);return {x:p.x*w/2/scale,y:(1-p.y)*400,r:27};}
 function body(){return [...simulation.nodes].reverse().filter((_,i)=>i%3===0).map(n=>project(n.p));}
@@ -86,7 +86,7 @@ function updateInput(points){
     if(padConnected){padConnected=false;selectMouse(mouseSide);}
   }
 }
-function panel(copy,button){$('#coach').hidden=false;$('#coach-guide').hidden=true;$('#coach-copy').textContent=copy;$('#coach-action').textContent=button;$('#coach-action').focus();}
+function panel(copy,button){$('#coach').hidden=false;$('#coach-copy').textContent=copy;$('#coach-action').textContent=button;$('#coach-action').focus();}
 function togglePause(){release();if(phase==='playing'){phase='paused';panel('先喘口气。准备好再继续。','继续活动');$('#pause').textContent='继续';}else if(phase==='paused'){phase='playing';$('#coach').hidden=true;$('#coach-action').blur();$('#pause').textContent='暂停';}}
 $('#pause').onclick=togglePause;
 $('#coach-action').onclick=()=>{if(phase==='paused'){togglePause();return;}if(phase==='playing')return;game.reset();selectMouse(mouseSide);particles=[];hitFlash=0;hurtFlash=0;burstFlash=0;judgment='';judgmentTime=0;moveFlash=0;simulation.setState('high');for(let i=0;i<25;i++){simulation.nodes[i].p.set(0,.64+i*4.9/24,0);simulation.nodes[i].old.copy(simulation.nodes[i].p);simulation.nodes[i].pressure=1;}phase='playing';$('#coach').hidden=true;$('#coach-action').blur();tone(440);};
@@ -98,6 +98,15 @@ function draw(dt,points){
   const dpr=canvas.width/w;ctx.setTransform(dpr*scale,0,0,dpr*scale,w*dpr/2,0);ctx.clearRect(-w/scale/2,0,w/scale,800);
   const anchor=defenseAnchor(points),radius=game.ringRadius;
   if(phase==='ready'||phase==='playing'||phase==='paused'){
+    // Small inward ticks mark the three approach directions, outside the judgment line.
+    const sideDistance=Math.min(radius+140,game.halfWidth-28);
+    ctx.save();ctx.strokeStyle='#a18a683e';ctx.lineWidth=1.5;
+    for(const [x,y,angle] of [[anchor.x-sideDistance,anchor.y,0],[anchor.x+sideDistance,anchor.y,Math.PI],[anchor.x,Math.max(205,anchor.y-radius-60),Math.PI/2]]){
+      ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+      for(let i=0;i<2;i++){ctx.beginPath();ctx.moveTo(-12-i*10,-7);ctx.lineTo(-5-i*10,0);ctx.lineTo(-12-i*10,7);ctx.stroke();}
+      ctx.restore();
+    }
+    ctx.restore();
     ctx.strokeStyle='#7869586e';ctx.lineWidth=1;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius,0,Math.PI*2);ctx.stroke();
     if(game.barrage){ctx.save();ctx.strokeStyle='#ad754d';ctx.setLineDash([5,9]);ctx.lineWidth=2;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius+12,0,Math.PI*2);ctx.stroke();ctx.restore();}
     const next=game.nextNote;
