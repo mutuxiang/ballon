@@ -9,13 +9,14 @@ import {createSkinGradient} from './skin-gradient.js';
 import {WorkGame,BARRAGE_STEPS,defenseAnchor,ACTION_LABELS,HIT_WINDOW} from './game-core.js';
 import {createMotionExpressions} from './motion-expressions.js';
 import {gameExpression} from './game-expression.js';
+import {HAZARDS,loadAtlas} from './game-art.js';
 import './game.css';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('#world').append(renderer.domElement);
-const camera=new THREE.OrthographicCamera(-10,10,9.5,-2,.1,100);camera.position.set(0,0,20);camera.lookAt(0,0,0);
+const camera=new THREE.OrthographicCamera(-10,10,11.05,-3.55,.1,100);camera.position.set(0,0,20);camera.lookAt(0,0,0);
 const character=createDancer({rest:true,separateFace:true}).group;applyToon(character);scene.add(character);
 const skins=createSkins(character);const clothing=createClothing(character,{onPaletteChange:p=>skins.setPalette(p)});clothing.select('pastel');
 const skinGradient=createSkinGradient(character,skins);skinGradient.setEnabled(true);
@@ -23,14 +24,34 @@ const simulation=new AirPhysics(character,{seed:4721,depthMotion:.15});simulatio
 let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
-const canvas=$('#effects'),ctx=canvas.getContext('2d'),sheet=new Image();sheet.src='./work-hazards.png';
-const cursorSprite=new Image();cursorSprite.src='./mouse-cursor-hazard.png';
+const canvas=$('#effects'),ctx=canvas.getContext('2d');
+const officeCanvas=$('#office-layer'),officeCtx=officeCanvas.getContext('2d');
+const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
+const officeAtlas=loadAtlas('./office-props-hatched.png',2,2,drawOffice);
 let phase='ready',w=innerWidth,h=innerHeight,scale=h/800,last=0,particles=[],best=0,sound=false,audio;
 let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
 const axisLatch={left:null,right:null};const heldKeys=new Set();
 try{best=Number(localStorage.getItem('air-worker-best')||0)||0;}catch{}$('#best').textContent=best;
-function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(11.5,6.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';}
+function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(14.6,7.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';drawOffice();}
+function drawOffice(){
+  const dpr=Math.min(devicePixelRatio,2);officeCanvas.width=w*dpr;officeCanvas.height=h*dpr;
+  officeCtx.setTransform(dpr,0,0,dpr,0,0);officeCtx.clearRect(0,0,w,h);
+  if(!officeAtlas.ready)return;
+  if(w>800){
+    const sideSpace=Math.max(90,(w-game.ringRadius*scale*2)/2-50),size=Math.min(230,sideSpace*.75,h*.32);
+    officeCtx.globalAlpha=.24;
+    officeAtlas.draw(officeCtx,2,w*.1,h*.36,size*.75);
+    officeAtlas.draw(officeCtx,0,w*.14,h*.76,size);
+    officeAtlas.draw(officeCtx,3,w*.88,h*.35,size*.85);
+    officeAtlas.draw(officeCtx,1,w*.88,h*.77,size*.83);
+  }else{
+    officeCtx.globalAlpha=.16;const size=Math.min(130,w*.29);
+    officeAtlas.draw(officeCtx,0,size*.42,h-size*.48,size);
+    officeAtlas.draw(officeCtx,1,w-size*.34,h-size*.5,size);
+  }
+  officeCtx.globalAlpha=1;
+}
 addEventListener('resize',resize);resize();
 function project(v){const p=v.clone().project(camera);return {x:p.x*w/2/scale,y:(1-p.y)*400,r:27};}
 function body(){return [...simulation.nodes].reverse().filter((_,i)=>i%3===0).map(n=>project(n.p));}
@@ -120,14 +141,14 @@ function draw(dt,points){
     if(o.removed)continue;
     ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.angle);ctx.globalAlpha=o.safe?.65:1;
     if(!o.safe){ctx.strokeStyle='#8f7d6865';ctx.lineWidth=1;for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*9,-60);ctx.lineTo(i*9,-45);ctx.stroke();}}
-    if(o.kind===4){
-      ctx.rotate(Math.PI*1.25);
-      if(cursorSprite.complete&&cursorSprite.naturalWidth)ctx.drawImage(cursorSprite,-35,-44,70,88);
-      else{ctx.fillStyle='#fffaf0';ctx.strokeStyle='#332d28';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-22,-32);ctx.lineTo(-22,24);ctx.lineTo(-6,12);ctx.lineTo(5,32);ctx.lineTo(15,26);ctx.lineTo(4,7);ctx.lineTo(25,7);ctx.closePath();ctx.fill();ctx.stroke();}
-    }else if(sheet.complete&&sheet.naturalWidth){const cw=sheet.naturalWidth/4;ctx.drawImage(sheet,cw*o.kind,0,cw,sheet.naturalHeight,-33,-44,66,88);}
-    else{ctx.fillStyle='#bd9e77';ctx.beginPath();ctx.moveTo(-16,-24);ctx.lineTo(16,-24);ctx.lineTo(0,35);ctx.closePath();ctx.fill();}
+    // All six symbols stay upright and use the same visible silhouette size.
+    ctx.rotate(-o.angle+Math.sin(o.age*2+o.kind)*.055);
+    if(!hazardAtlas.draw(ctx,o.kind,0,0,68)){
+      ctx.fillStyle='#fffaf0';ctx.strokeStyle='#332d28';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(0,-32);ctx.lineTo(12,-12);ctx.lineTo(32,0);ctx.lineTo(12,12);ctx.lineTo(0,32);ctx.lineTo(-12,12);ctx.lineTo(-32,0);ctx.lineTo(-12,-12);ctx.closePath();ctx.fill();ctx.stroke();
+    }
     ctx.restore();
-    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);}
+    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);ctx.font='11px sans-serif';ctx.fillStyle='#887663';ctx.fillText(HAZARDS[o.kind],o.x,o.y+48);}
   }
   for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=Math.max(0,p.life/.7);ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.04,p.y-p.vy*.04);ctx.stroke();}particles=particles.filter(p=>p.life>0);ctx.globalAlpha=1;
   if(game.burst>0){ctx.strokeStyle='#aa783b';ctx.lineWidth=4;ctx.globalAlpha=game.burst;ctx.beginPath();ctx.arc(points[0].x,points[0].y,(1-game.burst)*800+40,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}

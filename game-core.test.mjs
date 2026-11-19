@@ -50,7 +50,7 @@ function step(g,side){g.set(side,false);g.set(side,true);g.set(side,false);advan
 test('scheduled barrage warns first, replaces ordinary notes, and includes the cursor hazard',()=>{
   const g=setup();g.nextBarrageAt=18;g.time=18;g.update(0,body);
   assert.equal(g.barrageState,'warning');assert.equal(g.items.length,24);assert.ok(g.items.every(o=>o.barrage));
-  assert.ok(g.items.some(o=>o.kind===4));assert.equal(g.nextNote,undefined);
+  assert.ok(g.items.some(o=>o.kind===5));assert.equal(new Set(g.items.map(o=>o.kind)).size,6);assert.equal(g.nextNote,undefined);
   step(g,'left');assert.equal(g.charge,0);g.time=g.barrage.rushAt;g.update(0,body);assert.equal(g.barrageState,'active');
   const distance=Math.hypot(g.items[0].x-g.anchor.x,g.items[0].y-g.anchor.y);advance(g,1);
   assert.ok(Math.hypot(g.items[0].x-g.anchor.x,g.items[0].y-g.anchor.y)<distance);

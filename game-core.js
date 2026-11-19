@@ -1,3 +1,4 @@
+import {HAZARDS} from './game-art.js';
 export const BARRAGE_STEPS=12,BARRAGE_WARNING=2,BARRAGE_DURATION=10,BARRAGE_INTERVAL=26,HIT_WINDOW=.4,PERFECT_WINDOW=.15;
 export const ACTIONS=['up','right','down','left','rotate'];
 export const ACTION_LABELS={up:'↑',down:'↓',left:'←',right:'→',rotate:'↻'};
@@ -14,7 +15,7 @@ export class WorkGame {
   }
   get barrageState(){return !this.barrage?'idle':this.time<this.barrage.rushAt?'warning':'active';}
   get barrageRemaining(){return this.barrage?Math.max(0,this.barrage.endsAt-this.time):0;}
-  get ringRadius(){return Math.min(190,Math.max(100,this.halfWidth-24));}
+  get ringRadius(){return Math.min(210,Math.max(100,this.halfWidth-24));}
   get beat(){return Math.max(.9,1.25-(this.wave-1)*.015);}
   get nextNote(){return this.items.filter(o=>!o.safe&&!o.failed&&!o.barrage).sort((a,b)=>a.hitAt-b.hitAt)[0];}
   setViewport(width){if(Number.isFinite(width))this.halfWidth=Math.max(120,width);}
@@ -28,7 +29,7 @@ export class WorkGame {
     const spread=barrage?440:200,y=edge===0?-55:this.anchor.y-spread/2+this.random()*spread;
     const dx=x-this.anchor.x,dy=y-this.anchor.y,distance=Math.hypot(dx,dy)||1;
     const lead=3.6,speed=Math.max(40,(distance-this.ringRadius)/lead);
-    this.items.push({x,y,dx:dx/distance,dy:dy/distance,distance,barrage,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%5,
+    this.items.push({x,y,dx:dx/distance,dy:dy/distance,distance,barrage,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%HAZARDS.length,
       side,r:18,angle:Math.atan2(-dy,-dx)-Math.PI/2,spin:0,vx:0,vy:0,safe:false,failed:false,age:0});
     this.attackIndex++;
     // Rotation gets a whole extra beat before and after it.
