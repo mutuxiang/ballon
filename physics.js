@@ -2,7 +2,7 @@ import * as T from 'three';
 import {SHOULDER_Y} from './arm-mesh.js';
 const UP=new T.Vector3(0,1,0),SIDE=new T.Vector3(1,0,0);
 const clamp=T.MathUtils.clamp;
-const DODGE_DURATION=.45;
+const DODGE_DURATION=1.25;
 const DEFLATION_RATE=1;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
@@ -17,7 +17,9 @@ export class AirPhysics {
   random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
   setState(s){const target={none:0,low:.72,high:1}[s];if(s==='low'&&target>this.target)this.lowBoost=1.6;this.target=target;}
   dodge(direction){
-    if(!this.dodgeMotion)this.dodgeMotion={direction,start:this.time};
+    if(!this.dodgeMotion)this.dodgeMotion={
+      direction,start:this.time,pose:this.nodes.map(node=>node.p.clone())
+    };
   }
   update(dt){this.acc+=Math.min(dt,.1);while(this.acc>=1/120){this.step(1/120);this.acc-=1/120;}this.deform();}
   solveDistance(a,b,length,strength=1,fixed=false){const d=b.p.clone().sub(a.p),len=d.length();if(len<1e-7)return;d.multiplyScalar((len-length)/len*strength);if(fixed)b.p.sub(d);else{a.p.addScaledVector(d,.5);b.p.addScaledVector(d,-.5);}}
@@ -33,13 +35,6 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
-    let dodgeForce=0;
-    if(this.dodgeMotion){
-      const phase=(this.time-this.dodgeMotion.start-h/2)/DODGE_DURATION;
-      // Push away, then ease back into the normal sway over one cycle.
-      if(phase<1)dodgeForce=this.dodgeMotion.direction*135*Math.cos(phase*2*Math.PI);
-      else this.dodgeMotion=null;
-    }
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
     this.wind.clampLength(0,2.2);
@@ -59,7 +54,6 @@ export class AirPhysics {
       const u=i/24,p=n.pressure;
       // Follower force from the internal jet, with vertical buoyant support.
       const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+(this.superMode?19:15)*p+(this.target===.72?6*this.lowBoost/1.6*p:0),this.wind.z*(1+u)*p-n.p.z*p*1.2);
-      force.x+=dodgeForce*u*u*(.4+.6*p);
       force.addScaledVector(d,5*p).addScaledVector(new T.Vector3(Math.sin(this.time*1.31+i*.13),0,Math.cos(this.time*.83+i*.11)),p*1.4*u);
       force.z*=this.depthMotion;
       this.integrate(n,force,h);
@@ -84,6 +78,22 @@ export class AirPhysics {
         if((i-j)*4.9/24<min*1.15)continue;
         this.repelSegment(b,a,ns[j+1],min);
       }
+    }
+    if(this.dodgeMotion){
+      const motion=this.dodgeMotion;
+      const elapsed=this.time-motion.start;
+      const bend=T.MathUtils.smoothstep(elapsed,0,.22)*
+        (1-T.MathUtils.smoothstep(elapsed,.6,DODGE_DURATION));
+      const position=ns[1].p.clone();
+      for(let i=2;i<=24;i++){
+        // A half-turn of the spine makes a broad hairpin with the head pointing down.
+        const angle=(i-1)/23*Math.PI;
+        position.x+=motion.direction*Math.sin(angle)*4.9/24;
+        position.y+=Math.cos(angle)*4.9/24;
+        ns[i].p.copy(motion.pose[i]).lerp(position,bend);
+        ns[i].old.copy(ns[i].p);
+      }
+      if(elapsed>=DODGE_DURATION)this.dodgeMotion=null;
     }
     const shoulder=this.sample(SHOULDER_Y);
     for(const arm of this.arms){

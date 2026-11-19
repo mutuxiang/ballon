@@ -1,4 +1,5 @@
 import {createMangaMotion} from './manga-motion.js';
+import {createFocusManga} from './focus-manga.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -53,6 +54,7 @@ const clothing=createClothing(character,{onPaletteChange:palette=>{
   document.documentElement.style.setProperty('--skin-tone',palette.skinColor);
   document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
 }});
+const focusManga=createFocusManga(scene,character,camera);
 const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMode?.32:1});
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
@@ -242,7 +244,8 @@ renderer.setAnimationLoop(()=>{
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);
-  focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
+  focusManga.update(playing?dt*speed:0,simulation);
+  focusSprite.visible=false;const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
   if(simulation.superMode&&performance.now()-lastInkSample>700){lastInkSample=performance.now();const pos=focusSprite.position.clone().project(camera);window.desktopPet?.sample({x:(pos.x+1)*innerWidth/2,y:(1-pos.y)*innerHeight/2});}
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004,falling=head.p.y-head.old.y<-.0003;

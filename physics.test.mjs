@@ -64,6 +64,10 @@ for(const direction of [-1,1]){
   const headOffset=()=>dodging.nodes[24].p.x-baseline.nodes[24].p.x;
   assert.ok(headOffset()*direction>.8,'The upper body must bend toward either side on cue');
   assert.deepEqual(dodging.nodes[0].p,baseline.nodes[0].p,'The base must stay planted');
-  for(let i=24;i<60;i++)stepBoth();
-  assert.ok(Math.abs(headOffset())<.5,'The body must return toward its usual sway');
+  for(let i=24;i<48;i++)stepBoth();
+  assert.ok(dodging.nodes[24].p.y<1,'The head must fold down into an exaggerated U bend');
+  assert.ok(dodging.nodes[24].p.y<dodging.nodes[23].p.y,'The head must point down at the end of the U');
+  for(let i=48;i<156;i++)stepBoth();
+  assert.equal(dodging.dodgeMotion,null,'The dodge must finish and release the solver');
+  assert.ok(dodging.nodes[24].p.y>4,'The body must recover its upright pose');
 }
