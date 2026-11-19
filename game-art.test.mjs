@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {spriteBounds,spriteSize,HAZARDS} from './game-art.js';
+import {spriteBounds,spriteSize,HAZARDS,HAZARD_TIP_ANGLES,hazardRotation} from './game-art.js';
 
 test('atlas sizing uses visible alpha and never includes neighboring cells',()=>{
   const pixels=new Uint8ClampedArray(20*10*4);
@@ -20,4 +20,12 @@ test('portrait and landscape hazards share one longest dimension without stretch
 });
 test('transparent atlas cells are skipped instead of yielding invalid rectangles',()=>{
   assert.equal(spriteBounds(new Uint8ClampedArray(10*10*4),10,0,0,10,10),null);
+});
+test('every sprite tip points toward the character from every attack direction',()=>{
+  for(let kind=0;kind<HAZARDS.length;kind++)for(const [dx,dy] of [[1,0],[-1,0],[0,-1],[.6,-.8],[-.6,.8]]){
+    const tip=HAZARD_TIP_ANGLES[kind]+hazardRotation(kind,dx,dy);
+    const length=Math.hypot(dx,dy);
+    assert.ok(Math.abs(Math.cos(tip)+dx/length)<1e-8);
+    assert.ok(Math.abs(Math.sin(tip)+dy/length)<1e-8);
+  }
 });

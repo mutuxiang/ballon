@@ -9,7 +9,8 @@ import {createSkinGradient} from './skin-gradient.js';
 import {WorkGame,BARRAGE_STEPS,defenseAnchor,ACTION_LABELS,HIT_WINDOW} from './game-core.js';
 import {createMotionExpressions} from './motion-expressions.js';
 import {gameExpression} from './game-expression.js';
-import {HAZARDS,loadAtlas} from './game-art.js';
+import {hazardRotation,loadAtlas} from './game-art.js';
+import {createPoseBackdrop} from './pose-backdrop.js';
 import './game.css';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
@@ -25,6 +26,7 @@ let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
 const canvas=$('#effects'),ctx=canvas.getContext('2d');
+const poseBackdrop=createPoseBackdrop($('#pose-layer'));
 const officeCanvas=$('#office-layer'),officeCtx=officeCanvas.getContext('2d');
 const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
 const officeAtlas=loadAtlas('./office-props-hatched.png',2,2,drawOffice);
@@ -33,7 +35,7 @@ let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
 const axisLatch={left:null,right:null};const heldKeys=new Set();
 try{best=Number(localStorage.getItem('air-worker-best')||0)||0;}catch{}$('#best').textContent=best;
-function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(14.6,7.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';drawOffice();}
+function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(14.6,7.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';poseBackdrop.resize(w,h);drawOffice();}
 function drawOffice(){
   const dpr=Math.min(devicePixelRatio,2);officeCanvas.width=w*dpr;officeCanvas.height=h*dpr;
   officeCtx.setTransform(dpr,0,0,dpr,0,0);officeCtx.clearRect(0,0,w,h);
@@ -141,14 +143,14 @@ function draw(dt,points){
     if(o.removed)continue;
     ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.angle);ctx.globalAlpha=o.safe?.65:1;
     if(!o.safe){ctx.strokeStyle='#8f7d6865';ctx.lineWidth=1;for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*9,-60);ctx.lineTo(i*9,-45);ctx.stroke();}}
-    // All six symbols stay upright and use the same visible silhouette size.
-    ctx.rotate(-o.angle+Math.sin(o.age*2+o.kind)*.055);
+    // Rotate each distinct source tip inward; input glyphs remain upright.
+    ctx.rotate(hazardRotation(o.kind,o.dx,o.dy)-o.angle);
     if(!hazardAtlas.draw(ctx,o.kind,0,0,68)){
       ctx.fillStyle='#fffaf0';ctx.strokeStyle='#332d28';ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(0,-32);ctx.lineTo(12,-12);ctx.lineTo(32,0);ctx.lineTo(12,12);ctx.lineTo(0,32);ctx.lineTo(-12,12);ctx.lineTo(-32,0);ctx.lineTo(-12,-12);ctx.closePath();ctx.fill();ctx.stroke();
     }
     ctx.restore();
-    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);ctx.font='11px sans-serif';ctx.fillStyle='#887663';ctx.fillText(HAZARDS[o.kind],o.x,o.y+48);}
+    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);}
   }
   for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=Math.max(0,p.life/.7);ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.04,p.y-p.vy*.04);ctx.stroke();}particles=particles.filter(p=>p.life>0);ctx.globalAlpha=1;
   if(game.burst>0){ctx.strokeStyle='#aa783b';ctx.lineWidth=4;ctx.globalAlpha=game.burst;ctx.beginPath();ctx.arc(points[0].x,points[0].y,(1-game.burst)*800+40,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}

@@ -33,3 +33,6 @@ header{position:absolute;top:28px;right:32px;z-index:6}.tools{display:flex;gap:8
 .energy .barrage-feet{align-items:center;margin:12px 0 7px;gap:8px}.barrage-feet span{border:1.5px solid var(--ink);border-radius:6px;padding:7px 10px;background:var(--paper);transition:background .08s,transform .08s}.barrage-feet span.pressed{background:var(--gold);transform:translateY(2px)}.barrage-feet b{font-size:12px;font-weight:400;color:var(--muted)}#barrage-hint{margin:0;font-size:12px;text-align:center;color:#886644}
 
 #office-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.stage-tone{opacity:.18}
+
+#pose-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.14;mask-image:radial-gradient(ellipse 32% 47% at 50% 58%,transparent 45%,#000 85%)}
+@media(max-width:700px){#pose-layer{opacity:.09;mask-image:radial-gradient(ellipse 42% 43% at 50% 55%,transparent 35%,#000 90%)}}

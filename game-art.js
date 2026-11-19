@@ -1,4 +1,7 @@
 export const HAZARDS=['邮件','绩效','截止','会议','加班','催办'];
+// Direction of the prominent thorn in each source sprite (canvas coordinates).
+export const HAZARD_TIP_ANGLES=[-135,-45,45,45,-100,-130].map(degrees=>degrees*Math.PI/180);
+export function hazardRotation(kind,dx,dy){return Math.atan2(-dy,-dx)-HAZARD_TIP_ANGLES[kind];}
 
 // Measure the silhouette inside each atlas cell; transparent padding must not
 // determine an item's on-screen size. Source PNGs remain untouched.
