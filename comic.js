@@ -19,7 +19,6 @@ export function createComicHatching(scene,camera){
   material.userData.outlineParameters={visible:false};
   const mesh=new THREE.Mesh(geometry,material);mesh.name='Comic_background_lines';mesh.frustumCulled=false;mesh.visible=false;scene.add(mesh);
   const inverse=new THREE.Quaternion(),forward=new THREE.Vector3(),local=new THREE.Vector3(),anchor=new THREE.Vector3(),previousHead=new THREE.Vector3();
-  const motion=new THREE.Vector3();
   let enabled=false,time=0,frame=0,velocity=0,hasPrevious=false;
   function update(dt,simulation){
     if(!enabled)return;
@@ -29,7 +28,6 @@ export function createComicHatching(scene,camera){
     if(delta>0){
       const speed=hasPrevious?head.distanceTo(previousHead)/Math.max(delta,.001):0;
       velocity=THREE.MathUtils.lerp(velocity,Math.min(speed,6),1-Math.exp(-delta*5));
-      if(hasPrevious)motion.copy(head).sub(previousHead).divideScalar(Math.max(delta,.001));
       previousHead.copy(head);hasPrevious=true;
     }
     camera.updateMatrixWorld();inverse.copy(camera.quaternion).invert();forward.set(0,0,-1).applyQuaternion(camera.quaternion);
@@ -47,8 +45,7 @@ export function createComicHatching(scene,camera){
       }else anchor.copy(simulation.arms[stroke.sign<0?0:1].nodes[stroke.index].p);
       local.copy(anchor).sub(camera.position).applyQuaternion(inverse);
       const scale=distance/Math.max(.2,-local.z),x=local.x*scale,y=local.y*scale;
-      const direction=motion.clone().applyQuaternion(inverse);
-      const seed=stroke.seed,angle=Math.atan2(-direction.y,-direction.x)+noise(seed,0)*.025;
+      const seed=stroke.seed,angle=Math.PI/4;
       const dx=Math.cos(angle),dy=Math.sin(angle),nx=-dy,ny=dx;
       // Each stroke has its own length envelope, frame-to-frame variation and
       // small asymmetric kinks instead of a shared, mechanically pulsing scale.
@@ -59,7 +56,7 @@ export function createComicHatching(scene,camera){
       const jitterX=noise(seed+100,frame)*.016*scale,jitterY=noise(seed+200,frame)*.016*scale;
       for(let i=0;i<=SEGMENTS;i++){
         const t=i/SEGMENTS;
-        const kink=(noise(seed*19+i,frame)*.014+Math.sin(t*Math.PI*2+seed)*.012)*scale;
+        const kink=0;
         const cx=startX+dx*length*t+nx*kink+jitterX,cy=startY+dy*length*t+ny*kink+jitterY;
         const halfWidth=.012*scale*Math.pow(Math.sin(Math.PI*t),.45)*(1+noise(seed*31+i,frame)*.12);
         for(const side of [-1,1]){positions[offset++]=cx+nx*halfWidth*side;positions[offset++]=cy+ny*halfWidth*side;positions[offset++]=0;}
