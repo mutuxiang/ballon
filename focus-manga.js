@@ -11,41 +11,66 @@ export function createFocusManga(scene, character, camera) {
   bubble.visible = false;
   scene.add(bubble);
 
-  // A subdivided decal wraps the generated ink around the shirt and follows the solver.
-  const vertices = [], uv = [], indices = [];
-  const columns = 32, rows = 52;
-  for (let row = 0; row <= rows; row++) {
-    for (let column = 0; column <= columns; column++) {
-      const u = column / columns, v = row / rows;
-      const x = (u - .5) * 1.25, y = 1.58 + v * 2.20;
-      const radius = .66 - .025 * (y - .64) / 4.9;
-      vertices.push(x, y, Math.sqrt(Math.max(.01, radius * radius - x * x)) + .022);
-      uv.push(u, v);
-    }
-  }
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const a = row * (columns + 1) + column, b = a + columns + 1;
-      indices.push(a, a + 1, b, b, a + 1, b + 1);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
+  // Share the actual deformed skin, clothes and limb surfaces so ink follows their contours.
+  const shading = new THREE.Group();
+  shading.name = 'Focus_ink_shadows';
+  shading.visible = false;
   const bodyTexture = new THREE.TextureLoader().load('./focus-body-hatched-v2.png');
   bodyTexture.colorSpace = THREE.SRGBColorSpace;
-  bodyTexture.anisotropy = 4;
-  const shading = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-    map: bodyTexture, side: THREE.DoubleSide, transparent: true,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2
-  }));
-  shading.name = 'Focus_ink_shadows';
-  shading.userData.deformWithBody = true;
-  shading.frustumCulled = false;
-  shading.renderOrder = 3;
-  shading.visible = false;
+  const surfaces = ['Skin', 'Shirt', 'Trousers', 'Arm_left', 'Arm_right'];
+  for (const name of surfaces) {
+    const surface = character.getObjectByName(name);
+    const geometry = surface.geometry;
+    geometry.setAttribute('inkRestPosition', geometry.attributes.position.clone());
+    geometry.setAttribute('inkRestNormal', geometry.attributes.normal.clone());
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        bodyInk: {value: bodyTexture},
+        isArm: {value: name.startsWith('Arm_') ? 1 : 0},
+        isShirt: {value: name === 'Shirt' ? 1 : 0}
+      },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2,
+      vertexShader: `
+        attribute vec3 inkRestPosition;
+        attribute vec3 inkRestNormal;
+        varying vec3 restPoint, restNormal;
+        void main() {
+          restPoint = inkRestPosition;
+          restNormal = inkRestNormal;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position + normal * .006, 1.);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D bodyInk;
+        uniform float isArm, isShirt;
+        varying vec3 restPoint, restNormal;
+        void main() {
+          vec3 n = normalize(restNormal);
+          // Side planes of the face/torso, and undersides of sleeves and rounded hands.
+          float bodySide = smoothstep(.38, .9, abs(n.x));
+          float armSide = max((1. - smoothstep(-.82, -.12, n.y)), smoothstep(.45, .95, abs(n.x)));
+          float shade = mix(bodySide, armSide, isArm);
+          float crease = restPoint.y * 23. + restPoint.x * 15. + restPoint.z * 9.;
+          float line = 1. - smoothstep(.14, .32, abs(sin(crease)));
+          float crossLine = 1. - smoothstep(.12, .27, abs(sin(restPoint.y * 30. - restPoint.x * 19.)));
+          float ink = shade * (.14 + .67 * line);
+          ink = max(ink, smoothstep(.75, 1., shade) * (.3 + .3 * crossLine));
+          vec2 uv = vec2(restPoint.x / 1.25 + .5, (restPoint.y - 1.58) / 2.2);
+          float front = smoothstep(.15, .6, n.z);
+          if (isShirt > .5 && uv.y > 0. && uv.y < 1.)
+            ink = max(ink, texture2D(bodyInk, uv).a * front * .85);
+          gl_FragColor = vec4(.065, .055, .08, ink);
+          #include <colorspace_fragment>
+        }
+      `
+    });
+    const ink = new THREE.Mesh(geometry, material);
+    ink.name = 'Focus_contour_' + name;
+    ink.frustumCulled = false;
+    ink.renderOrder = 3;
+    shading.add(ink);
+  }
   character.add(shading);
 
   let active = false, age = 0, variant = Math.floor(Math.random() * 4);
