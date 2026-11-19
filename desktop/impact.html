@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style><canvas></canvas><script>
+const c=document.querySelector('canvas'),g=c.getContext('2d'),q=new URLSearchParams(location.search),x=Number(q.get('x')),y=Number(q.get('y')),d=devicePixelRatio;c.width=innerWidth*d;c.height=innerHeight*d;g.scale(d,d);
+const reach=Math.max(Math.hypot(x,y),Math.hypot(innerWidth-x,y),Math.hypot(x,innerHeight-y),Math.hypot(innerWidth-x,innerHeight-y))+40;let start;
+function draw(t){if(!start)start=t;const p=Math.min(1,(t-start)/1250),r=25+reach*(1-Math.pow(1-p,1.6));g.clearRect(0,0,innerWidth,innerHeight);g.globalAlpha=Math.pow(1-p,.7);for(const [offset,width,color] of [[0,7,'#fffdf1'],[0,3,'#252525'],[-14,1,'#252525']]){g.beginPath();g.arc(x,y,Math.max(0,r+offset),0,Math.PI*2);g.strokeStyle=color;g.lineWidth=width;g.stroke();}if(p<1)requestAnimationFrame(draw);}requestAnimationFrame(draw);
+</script>

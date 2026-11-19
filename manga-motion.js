@@ -6,7 +6,7 @@ export function createMangaMotion(camera){
   const project=p=>{const v=p.clone().project(camera);return {x:(v.x+1)*innerWidth/2,y:(1-v.y)*innerHeight/2};};
   return {canvas,get burst(){return burst;},update(dt,sim,ink='#202421'){
     if(dt<=0)return;time+=dt;const head=sim.nodes[24].p;
-    if(sim.superMode&&!wasFocused)burst=1;
+    if(sim.superMode&&!wasFocused){burst=1;const origin=project(head);window.desktopPet?.burst({x:origin.x,y:origin.y,ink});}
     if(!sim.superMode)burst=0;
     wasFocused=Boolean(sim.superMode);burst=Math.max(0,burst-dt/1.1);
     const dpr=Math.min(devicePixelRatio,2);if(canvas.width!==Math.round(innerWidth*dpr)||canvas.height!==Math.round(innerHeight*dpr)){canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);}
@@ -21,7 +21,7 @@ export function createMangaMotion(camera){
         const angle=i/36*Math.PI*2,inner=r*(1.55+expansion*.9),outer=inner+r*(.65+(i%4)*.18)*burst;
         ctx.beginPath();ctx.moveTo(a.x+Math.cos(angle)*inner,a.y+Math.sin(angle)*inner);ctx.lineTo(a.x+Math.cos(angle)*outer,a.y+Math.sin(angle)*outer);ctx.lineWidth=i%4===0?2.5:1;ctx.stroke();
       }
-      ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(a.x,a.y,r*(1.4+expansion*1.6),r*(1.15+expansion*1.4),0,0,Math.PI*2);ctx.stroke();
+      ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(a.x,a.y,(window.desktopPet?r*(1.4+expansion*1.6):r+expansion*Math.hypot(innerWidth,innerHeight)),(window.desktopPet?r*(1.15+expansion*1.4):r+expansion*Math.hypot(innerWidth,innerHeight)),0,0,Math.PI*2);ctx.stroke();
       ctx.fillStyle=ink;
       for(let i=0;i<24;i++){const angle=i*2.399,rad=r*(1.8+(i%5)*.14+expansion*.5);ctx.beginPath();ctx.arc(a.x+Math.cos(angle)*rad,a.y+Math.sin(angle)*rad,.8+(i%3)*.3,0,Math.PI*2);ctx.fill();}
     }

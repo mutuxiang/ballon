@@ -5,8 +5,8 @@ const clamp=T.MathUtils.clamp;
 // Fixed-step position-based elastic rod. Pressure is transported upwards and
 // attenuated by kinks; gravity, drag and correlated gusts drive the motion.
 export class AirPhysics {
-  constructor(root,{seed=28713,planar=false}={}){
-    this.planar=planar;
+  constructor(root,{seed=28713,planar=false,depthMotion=1}={}){
+    this.planar=planar;this.depthMotion=depthMotion;
     this.seed=seed;this.target=1;this.time=0;this.acc=0;this.wind=new T.Vector3();
     this.nodes=Array.from({length:25},(_,i)=>({p:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),old:new T.Vector3(.035*Math.sin(i*.3),.64+i*4.9/24,0),pressure:1}));
     this.arms=[-1,1].map(sign=>({sign,nodes:Array.from({length:7},(_,i)=>({p:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),old:new T.Vector3(sign*(.5+i*1.04/6),3.677,0),pressure:1}))}));
@@ -43,6 +43,7 @@ export class AirPhysics {
       // Follower force from the internal jet, with vertical buoyant support.
       const force=new T.Vector3((this.wind.x+(this.pedalLean||0))*(1+u*2)*p-n.p.x*p*1.2,-9.81+(this.superMode?19:15)*p,this.wind.z*(1+u)*p-n.p.z*p*1.2);
       force.addScaledVector(d,5*p).addScaledVector(new T.Vector3(Math.sin(this.time*1.31+i*.13),0,Math.cos(this.time*.83+i*.11)),p*1.4*u);
+      force.z*=this.depthMotion;
       this.integrate(n,force,h);
     }
     for(let iter=0;iter<10;iter++){
@@ -75,6 +76,7 @@ export class AirPhysics {
         const p=arr[i].pressure;
         const force=new T.Vector3(this.wind.x*p,-9.81+8*p,this.wind.z*p);
         force.addScaledVector(shoulder.n,arm.sign*10*p);
+        force.z*=this.depthMotion;
         this.integrate(arr[i],force,h);
       }
       for(let iter=0;iter<8;iter++){

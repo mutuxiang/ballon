@@ -54,7 +54,7 @@ const clothing=createClothing(character,{onPaletteChange:palette=>{
   document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
 }});
 const effect=new SilhouetteEffect(renderer,character);
-const simulation=new AirPhysics(character,{seed:Date.now()>>>0,planar:petMode});
+const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMode?.32:1});
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
 outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
 document.querySelector('#air-states').append(outfitPanel);
@@ -183,8 +183,8 @@ renderer.setAnimationLoop(()=>{
   focusSprite.visible=Boolean(simulation.superMode);const focusFrame=simulation.sample(5.15);focusSprite.position.copy(focusFrame.c);focusSprite.position.z-=.8;
   if(simulation.superMode&&performance.now()-lastInkSample>700){lastInkSample=performance.now();const pos=focusSprite.position.clone().project(camera);window.desktopPet?.sample({x:(pos.x+1)*innerWidth/2,y:(1-pos.y)*innerHeight/2});}
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
-  const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
-  comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&head.p.y>.5);
+  const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004,falling=head.p.y-head.old.y<-.0003;
+  comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&falling&&head.p.y>.5);
   controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation,focusSprite.material.color.getStyle());focusSprite.scale.setScalar(1+mangaMotion.burst*.28);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });

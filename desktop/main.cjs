@@ -18,6 +18,17 @@ app.whenReady().then(()=>{
   win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.on('closed',()=>focusHelper?.stdin.end('exit\n'));
   win.setMenuBarVisibility(false);win.loadFile(path.join(__dirname,'../dist/index.html'),{query:{pet:'1'}});
+  let impactWindow=null;
+  ipcMain.on('pet:burst',(_e,point)=>{
+    const petBounds=win.getBounds(),display=screen.getDisplayMatching(petBounds);
+    if(impactWindow&&!impactWindow.isDestroyed())impactWindow.close();
+    impactWindow=new BrowserWindow({x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,transparent:true,frame:false,alwaysOnTop:true,focusable:false,skipTaskbar:true,hasShadow:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+    impactWindow.setIgnoreMouseEvents(true);
+    const overlay=impactWindow;
+    overlay.loadFile(path.join(__dirname,'impact.html'),{query:{x:String(petBounds.x+point.x-display.bounds.x),y:String(petBounds.y+point.y-display.bounds.y)}});
+    overlay.once('ready-to-show',()=>{if(!overlay.isDestroyed()){overlay.showInactive();overlay.setBounds(display.bounds);}});
+    setTimeout(()=>{if(!overlay.isDestroyed())overlay.close();},1600);
+  });
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
