@@ -1,4 +1,4 @@
-export const ULTIMATE_HITS=6,ULTIMATE_STEPS=6,HIT_WINDOW=.4,PERFECT_WINDOW=.15;
+export const BARRAGE_STEPS=12,BARRAGE_WARNING=2,BARRAGE_DURATION=10,BARRAGE_INTERVAL=26,HIT_WINDOW=.4,PERFECT_WINDOW=.15;
 export const ACTIONS=['up','right','down','left','rotate'];
 export const ACTION_LABELS={up:'↑',down:'↓',left:'←',right:'→',rotate:'↻'};
 export function defenseAnchor(body){return {x:body.reduce((s,p)=>s+p.x,0)/body.length,y:body.reduce((s,p)=>s+p.y,0)/body.length};}
@@ -6,34 +6,36 @@ export class WorkGame {
   constructor(random=Math.random){this.random=random;this.halfWidth=600;this.practiceMode=true;this.reset();}
   reset(){
     this.time=0;this.score=0;this.wave=1;this.air=100;this.invulnerable=0;this.combo=0;this.bestCombo=0;
-    this.charge=0;this.ultimateHits=0;this.lastBeat=-10;this.lastAction=-10;
+    this.charge=0;this.lastChargeSide=null;this.lastBeat=-10;this.lastAction=-10;
+    this.barrage=null;this.nextBarrageAt=18;
     this.spawnIn=.35;this.attackIndex=0;this.items=[];this.events=[];this.over=false;this.burst=0;
     this.anchor={x:0,y:520};this.feet={left:false,right:false};
     this.sticks={left:{x:0,y:0,enabled:true},right:{x:0,y:0,enabled:false}};
   }
-  get ultimateReady(){return this.ultimateHits>=ULTIMATE_HITS;}
+  get barrageState(){return !this.barrage?'idle':this.time<this.barrage.rushAt?'warning':'active';}
+  get barrageRemaining(){return this.barrage?Math.max(0,this.barrage.endsAt-this.time):0;}
   get ringRadius(){return Math.min(190,Math.max(100,this.halfWidth-24));}
   get beat(){return Math.max(.9,1.25-(this.wave-1)*.015);}
-  get nextNote(){return this.items.filter(o=>!o.safe&&!o.failed).sort((a,b)=>a.hitAt-b.hitAt)[0];}
+  get nextNote(){return this.items.filter(o=>!o.safe&&!o.failed&&!o.barrage).sort((a,b)=>a.hitAt-b.hitAt)[0];}
   setViewport(width){if(Number.isFinite(width))this.halfWidth=Math.max(120,width);}
-  spawnAttack(){
+  spawnAttack(barrage=false){
     const phrase=['up','right','down','left','rotate','left','up','right','down','rotate'];
     const action=phrase[this.attackIndex%phrase.length],side=this.attackIndex%2?'right':'left';
     // Match the approach side to the required foot, including overhead notes.
     const edge=this.attackIndex%3===0?0:side==='left'?3:1;
     const overheadOffset=Math.min(this.halfWidth*.7,80+this.random()*160);
     const x=edge===1?this.halfWidth+55:edge===3?-this.halfWidth-55:this.anchor.x+(side==='left'?-1:1)*overheadOffset;
-    const y=edge===0?-55:this.anchor.y-100+this.random()*200;
+    const spread=barrage?440:200,y=edge===0?-55:this.anchor.y-spread/2+this.random()*spread;
     const dx=x-this.anchor.x,dy=y-this.anchor.y,distance=Math.hypot(dx,dy)||1;
     const lead=3.6,speed=Math.max(40,(distance-this.ringRadius)/lead);
-    this.items.push({x,y,dx:dx/distance,dy:dy/distance,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%4,
+    this.items.push({x,y,dx:dx/distance,dy:dy/distance,distance,barrage,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%5,
       side,r:18,angle:Math.atan2(-dy,-dx)-Math.PI/2,spin:0,vx:0,vy:0,safe:false,failed:false,age:0});
     this.attackIndex++;
     // Rotation gets a whole extra beat before and after it.
     this.spawnIn=this.beat*((action==='rotate'||phrase[this.attackIndex%phrase.length]==='rotate')?2:1);
   }
   perform(action,side='left'){
-    if(this.over||!ACTIONS.includes(action)||!['left','right'].includes(side)||this.time-this.lastAction<.16)return false;
+    if(this.over||this.barrage||!ACTIONS.includes(action)||!['left','right'].includes(side)||this.time-this.lastAction<.16)return false;
     this.lastAction=this.time;this.events.push({type:'action',action,side});
     const note=this.nextNote;
     if(!note)return false;
@@ -54,29 +56,53 @@ export class WorkGame {
     if(!(side in this.feet)||this.over||this.feet[side]===down)return;
     this.feet[side]=down;if(!down)return;
     this.events.push({type:'step',side});
-    if(this.ultimateReady&&this.time-this.lastBeat>=.15){
-      this.lastBeat=this.time;this.charge++;
-      if(this.charge>=ULTIMATE_STEPS){
-        this.charge=0;this.ultimateHits=0;this.burst=1;this.air=Math.min(100,this.air+20);this.invulnerable=1;
-        for(const o of this.items)this.deflect(o,{x:o.x-this.anchor.x,y:o.y-this.anchor.y},true);
-        this.events.push({type:'burst'});
-      }
+    if(this.barrageState==='active'&&this.time<this.barrage.endsAt&&side!==this.lastChargeSide&&this.time-this.lastBeat>=.09){
+      this.lastBeat=this.time;this.lastChargeSide=side;this.charge++;
+      if(this.charge>=BARRAGE_STEPS)this.finishBarrage(true);
     }
+  }
+  startBarrage(){
+    if(this.barrage||this.over)return;
+    this.items=[];this.charge=0;this.lastChargeSide=null;this.lastBeat=-10;this.release();
+    this.barrage={rushAt:this.time+BARRAGE_WARNING,endsAt:this.time+BARRAGE_WARNING+BARRAGE_DURATION};
+    for(let i=0;i<24;i++)this.spawnAttack(true);
+    this.events.push({type:'barrage-warning'});
+  }
+  finishBarrage(success){
+    if(!this.barrage)return;
+    if(success){
+      this.burst=1;this.air=Math.min(100,this.air+20);this.invulnerable=1;
+      for(const o of this.items)this.deflect(o,{x:o.dx,y:o.dy},true);
+      this.events.push({type:'burst'});
+    }else{
+      this.air=Math.max(0,this.air-56);this.combo=0;this.invulnerable=.6;
+      this.events.push({type:'leak',x:this.anchor.x,y:this.anchor.y},{type:'barrage-miss'});
+      if(this.air<=0&&!this.practiceMode){this.over=true;this.events.push({type:'pop'});}
+    }
+    this.items=[];this.barrage=null;this.charge=0;this.lastChargeSide=null;this.release();
+    this.nextBarrageAt=this.time+BARRAGE_INTERVAL;this.spawnIn=1.5;
   }
   release(){this.feet.left=this.feet.right=false;}
   deflect(o,direction,burst=false,points=10){
     if(o.safe)return;o.safe=true;o.removed=true;this.score+=points;
-    if(!burst){const ready=this.ultimateReady;this.ultimateHits=Math.min(ULTIMATE_HITS,this.ultimateHits+1);if(!ready&&this.ultimateReady)this.events.push({type:'ultimate-ready'});}
     this.events.push({type:'hit',x:o.x,y:o.y});
   }
   update(dt,body){
     if(this.over)return;dt=Math.max(0,Math.min(dt,.035));this.time+=dt;this.anchor=defenseAnchor(body);
     this.invulnerable=Math.max(0,this.invulnerable-dt);this.wave=1+Math.floor(this.time/20);this.burst=Math.max(0,this.burst-dt*1.5);
-    if(this.time-this.lastBeat>2)this.charge=Math.max(0,this.charge-dt*1.2);
-    this.spawnIn-=dt;if(this.spawnIn<=0)this.spawnAttack();
+    if(!this.barrage&&this.time>=this.nextBarrageAt)this.startBarrage();
+    if(this.barrage){
+      if(this.time>=this.barrage.endsAt)this.finishBarrage(false);
+      else if(this.time-this.lastBeat>1.5){this.charge=Math.max(0,this.charge-dt*1.4);if(this.charge===0)this.lastChargeSide=null;}
+    }else{this.spawnIn-=dt;if(this.spawnIn<=0)this.spawnAttack();}
     for(const o of this.items){
       o.age+=dt;
       if(o.safe){o.x+=o.vx*dt;o.y+=o.vy*dt;o.angle+=o.spin*dt;continue;}
+      if(o.barrage){
+        const progress=Math.max(0,Math.min(1,(this.time-this.barrage.rushAt)/BARRAGE_DURATION));
+        const radius=o.distance*(1-progress)+35*progress;
+        o.x=this.anchor.x+o.dx*radius;o.y=this.anchor.y+o.dy*radius;continue;
+      }
       // Center of the object reaches the drawn ring exactly at hitAt.
       const radius=Math.max(0,this.ringRadius+(o.hitAt-this.time)*o.speed);
       o.x=this.anchor.x+o.dx*radius;o.y=this.anchor.y+o.dy*radius;

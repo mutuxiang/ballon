@@ -5,7 +5,8 @@ import {applyToon} from './toon.js';
 import {SilhouetteEffect} from './silhouette.js';
 import {createSkins} from './skins.js';
 import {createClothing} from './clothing.js';
-import {WorkGame,ULTIMATE_HITS,ULTIMATE_STEPS,defenseAnchor,ACTION_LABELS,HIT_WINDOW} from './game-core.js';
+import {createSkinGradient} from './skin-gradient.js';
+import {WorkGame,BARRAGE_STEPS,defenseAnchor,ACTION_LABELS,HIT_WINDOW} from './game-core.js';
 import {createMotionExpressions} from './motion-expressions.js';
 import {gameExpression} from './game-expression.js';
 import './game.css';
@@ -17,11 +18,13 @@ $('#world').append(renderer.domElement);
 const camera=new THREE.OrthographicCamera(-10,10,13.2,-1.8,.1,100);camera.position.set(0,0,20);camera.lookAt(0,0,0);
 const character=createDancer({rest:true,separateFace:true}).group;applyToon(character);scene.add(character);
 const skins=createSkins(character);const clothing=createClothing(character,{onPaletteChange:p=>skins.setPalette(p)});clothing.select('pastel');
+const skinGradient=createSkinGradient(character,skins);skinGradient.setEnabled(true);
 const simulation=new AirPhysics(character,{seed:4721,depthMotion:.15});simulation.setState('high');
-let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0,ultimateNoticeUntil=0;
+let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
 const canvas=$('#effects'),ctx=canvas.getContext('2d'),sheet=new Image();sheet.src='./work-hazards.png';
+const cursorSprite=new Image();cursorSprite.src='./mouse-cursor-hazard.png';
 let phase='ready',w=innerWidth,h=innerHeight,scale=h/800,last=0,particles=[],best=0,sound=false,audio;
 let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
@@ -53,10 +56,12 @@ addEventListener('keydown',e=>{
     e.preventDefault();if(!e.repeat)$('#coach-action').click();return;
   }
   if(keyMoves[e.code]){e.preventDefault();if(!e.repeat&&!heldKeys.has(e.code)){heldKeys.add(e.code);perform(...keyMoves[e.code]);}}
-  if(e.code==='Space'){e.preventDefault();pedal('left',true,'space');}
+  if(e.code==='Space')e.preventDefault();
+  const stepSide={KeyF:'left',KeyH:'right'}[e.code];
+  if(stepSide){e.preventDefault();if(!e.repeat)pedal(stepSide,true,e.code);}
   if(!e.repeat&&(e.code==='KeyP'||e.code==='Escape')&&phase!=='ready'&&phase!=='over'){e.preventDefault();togglePause();}
 });
-addEventListener('keyup',e=>{heldKeys.delete(e.code);if(e.code==='Space')pedal('left',false,'space');});
+addEventListener('keyup',e=>{heldKeys.delete(e.code);const side={KeyF:'left',KeyH:'right'}[e.code];if(side)pedal(side,false,e.code);});
 addEventListener('blur',()=>{release();if(phase==='playing')togglePause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){release();if(phase==='playing')togglePause();}});
 function analogAction(side,x,y){
@@ -67,7 +72,7 @@ function analogAction(side,x,y){
 }
 function hardwareStick(side,x,y,down=false){if(!game.sticks[side]||!Number.isFinite(x)||!Number.isFinite(y))return;hardwareActive=true;game.setStick(side,x,y);if(phase==='playing')analogAction(side,x,y);pedal(side,Boolean(down));}
 window.addEventListener('air-worker-pedal',e=>{const d=e.detail;if(!d||!game.sticks[d.side])return;const s=game.sticks[d.side];hardwareStick(d.side,d.x??s.x,d.y??s.y,d.down);});
-window.airWorkerGame={perform, setPedal:(side,down)=>{const s=game.sticks[side];if(s)hardwareStick(side,s.x,s.y,down);},setStick:hardwareStick,disconnect:()=>{release();selectMouse(mouseSide);},get state(){return {phase,air:game.air,score:game.score,wave:game.wave,time:game.time,ultimateHits:game.ultimateHits,ultimateReady:game.ultimateReady,charge:game.charge,combo:game.combo,nextAction:game.nextNote?.action,sticks:structuredClone(game.sticks)};}};
+window.airWorkerGame={perform, setPedal:(side,down)=>{const s=game.sticks[side];if(s)hardwareStick(side,s.x,s.y,down);},setStick:hardwareStick,disconnect:()=>{release();selectMouse(mouseSide);},get state(){return {phase,air:game.air,score:game.score,wave:game.wave,time:game.time,barrage:game.barrageState,barrageRemaining:game.barrageRemaining,charge:game.charge,combo:game.combo,nextAction:game.nextNote?.action,sticks:structuredClone(game.sticks)};}};
 function updateInput(points){
   const pad=Array.from(navigator.getGamepads?.()||[]).find(p=>p?.connected&&p.mapping==='standard');
   if(pad){
@@ -84,7 +89,7 @@ function updateInput(points){
 function panel(copy,button){$('#coach').hidden=false;$('#coach-guide').hidden=true;$('#coach-copy').textContent=copy;$('#coach-action').textContent=button;$('#coach-action').focus();}
 function togglePause(){release();if(phase==='playing'){phase='paused';panel('先喘口气。准备好再继续。','继续活动');$('#pause').textContent='继续';}else if(phase==='paused'){phase='playing';$('#coach').hidden=true;$('#coach-action').blur();$('#pause').textContent='暂停';}}
 $('#pause').onclick=togglePause;
-$('#coach-action').onclick=()=>{if(phase==='paused'){togglePause();return;}if(phase==='playing')return;game.reset();selectMouse(mouseSide);particles=[];hitFlash=0;hurtFlash=0;burstFlash=0;ultimateNoticeUntil=0;judgment='';judgmentTime=0;moveFlash=0;simulation.setState('high');for(let i=0;i<25;i++){simulation.nodes[i].p.set(0,.64+i*4.9/24,0);simulation.nodes[i].old.copy(simulation.nodes[i].p);simulation.nodes[i].pressure=1;}phase='playing';$('#coach').hidden=true;$('#coach-action').blur();tone(440);};
+$('#coach-action').onclick=()=>{if(phase==='paused'){togglePause();return;}if(phase==='playing')return;game.reset();selectMouse(mouseSide);particles=[];hitFlash=0;hurtFlash=0;burstFlash=0;judgment='';judgmentTime=0;moveFlash=0;simulation.setState('high');for(let i=0;i<25;i++){simulation.nodes[i].p.set(0,.64+i*4.9/24,0);simulation.nodes[i].old.copy(simulation.nodes[i].p);simulation.nodes[i].pressure=1;}phase='playing';$('#coach').hidden=true;$('#coach-action').blur();tone(440);};
 $('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#game').requestFullscreen();}catch{$('#fullscreen').title='浏览器暂未允许全屏';}};
 document.addEventListener('fullscreenchange',()=>{$('#fullscreen').textContent=document.fullscreenElement?'退出全屏':'全屏';resize();});
 $('#sound').onclick=()=>{sound=!sound;$('#sound').textContent='声音 '+(sound?'开':'关');$('#sound').setAttribute('aria-label',sound?'关闭音效':'开启音效');tone(550);};
@@ -94,6 +99,7 @@ function draw(dt,points){
   const anchor=defenseAnchor(points),radius=game.ringRadius;
   if(phase==='ready'||phase==='playing'||phase==='paused'){
     ctx.strokeStyle='#7869586e';ctx.lineWidth=1;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius,0,Math.PI*2);ctx.stroke();
+    if(game.barrage){ctx.save();ctx.strokeStyle='#ad754d';ctx.setLineDash([5,9]);ctx.lineWidth=2;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius+12,0,Math.PI*2);ctx.stroke();ctx.restore();}
     const next=game.nextNote;
     if(next){const angle=Math.atan2(next.dy,next.dx);ctx.strokeStyle=Math.abs(game.time-next.hitAt)<=HIT_WINDOW?'#ba8238':'#b6a08a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(anchor.x,anchor.y,radius,angle-.12,angle+.12);ctx.stroke();}
     ctx.textAlign='center';ctx.fillStyle='#887663';ctx.font='10px sans-serif';ctx.fillText('判 定 线',anchor.x,anchor.y+radius+18);
@@ -105,16 +111,20 @@ function draw(dt,points){
     if(o.removed)continue;
     ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.angle);ctx.globalAlpha=o.safe?.65:1;
     if(!o.safe){ctx.strokeStyle='#8f7d6865';ctx.lineWidth=1;for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*9,-60);ctx.lineTo(i*9,-45);ctx.stroke();}}
-    if(sheet.complete&&sheet.naturalWidth){const cw=sheet.naturalWidth/4;ctx.drawImage(sheet,cw*o.kind,0,cw,sheet.naturalHeight,-33,-44,66,88);}
+    if(o.kind===4){
+      ctx.rotate(Math.PI*1.25);
+      if(cursorSprite.complete&&cursorSprite.naturalWidth)ctx.drawImage(cursorSprite,-35,-44,70,88);
+      else{ctx.fillStyle='#fffaf0';ctx.strokeStyle='#332d28';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-22,-32);ctx.lineTo(-22,24);ctx.lineTo(-6,12);ctx.lineTo(5,32);ctx.lineTo(15,26);ctx.lineTo(4,7);ctx.lineTo(25,7);ctx.closePath();ctx.fill();ctx.stroke();}
+    }else if(sheet.complete&&sheet.naturalWidth){const cw=sheet.naturalWidth/4;ctx.drawImage(sheet,cw*o.kind,0,cw,sheet.naturalHeight,-33,-44,66,88);}
     else{ctx.fillStyle='#bd9e77';ctx.beginPath();ctx.moveTo(-16,-24);ctx.lineTo(16,-24);ctx.lineTo(0,35);ctx.closePath();ctx.fill();}
     ctx.restore();
-    if(!o.safe){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);}
+    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);}
   }
   for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=Math.max(0,p.life/.7);ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.04,p.y-p.vy*.04);ctx.stroke();}particles=particles.filter(p=>p.life>0);ctx.globalAlpha=1;
   if(game.burst>0){ctx.strokeStyle='#aa783b';ctx.lineWidth=4;ctx.globalAlpha=game.burst;ctx.beginPath();ctx.arc(points[0].x,points[0].y,(1-game.burst)*800+40,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
 }
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000||0,.035);last=now;
-  if(phase!=='paused'){judgmentTime=Math.max(0,judgmentTime-dt);moveFlash=Math.max(0,moveFlash-dt);hitFlash=Math.max(0,hitFlash-dt);hurtFlash=Math.max(0,hurtFlash-dt);burstFlash=Math.max(0,burstFlash-dt);simulation.target=phase==='over'?0:phase==='ready'?1:.38+game.air/100*.62;simulation.pedalLean=(Number(game.feet.right)-Number(game.feet.left))*.5;simulation.update(dt);expressions.update(dt,simulation);}
+  if(phase!=='paused'){judgmentTime=Math.max(0,judgmentTime-dt);moveFlash=Math.max(0,moveFlash-dt);hitFlash=Math.max(0,hitFlash-dt);hurtFlash=Math.max(0,hurtFlash-dt);burstFlash=Math.max(0,burstFlash-dt);simulation.target=phase==='over'?0:phase==='ready'?1:.38+game.air/100*.62;simulation.pedalLean=(Number(game.feet.right)-Number(game.feet.left))*.5;simulation.superMode=burstFlash>0;simulation.update(dt);skinGradient.update(simulation);expressions.update(dt,simulation);skins.setFocus(burstFlash>0);}
   if($('#game').dataset.phase!==phase)$('#game').dataset.phase=phase;
   const points=body();
   if(phase==='playing'){
@@ -126,14 +136,21 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
 
       if(ev.type==='step'){tone(ev.side==='left'?220:300);for(let i=12;i<25;i++)simulation.nodes[i].old.x-=(ev.side==='left'?-.003:.003);}
       if(ev.type==='hit'){hitFlash=.8;puff(ev.x,ev.y);tone(650,.045);}
-      if(ev.type==='ultimate-ready'){ultimateNoticeUntil=game.time+3;tone(880,.2);}
-      if(ev.type==='burst'){burstFlash=1.8;puff(points[0].x,points[0].y,'#c08b43',35);tone(750,.3);}
+      if(ev.type==='barrage-warning'){release();judgment='攻击大爆发 · 准备双脚';judgmentQuality='warning';judgmentTime=2;tone(380,.25);}
+      if(ev.type==='barrage-miss'){judgment='没关系，继续下一拍';judgmentQuality='miss';judgmentTime=1.5;}
+      if(ev.type==='burst'){release();burstFlash=1.8;judgment='全部击退！';judgmentQuality='perfect';judgmentTime=1.5;puff(points[0].x,points[0].y,'#c08b43',35);tone(750,.3);}
       if(ev.type==='leak'){hurtFlash=1.2;puff(ev.x,ev.y,'#b17861',25);tone(100,.25);}
       if(ev.type==='pop'){phase='over';release();best=Math.max(best,game.score);try{localStorage.setItem('air-worker-best',String(best));}catch{}$('#best').textContent=best;panel(`活动了 ${Math.floor(game.time)} 秒，最高 ${game.bestCombo} 连击。休息一下，再充满气。`,'重新充气');}
     }
   }
-  $('#score').textContent=String(game.score).padStart(4,'0');$('#time').textContent=String(Math.floor(game.time/60)).padStart(2,'0')+':'+String(Math.floor(game.time%60)).padStart(2,'0');$('#wave').textContent=String(game.wave).padStart(2,'0');$('#charge').max=game.ultimateReady?ULTIMATE_STEPS:ULTIMATE_HITS;$('#charge').value=game.ultimateReady?game.charge:game.ultimateHits;$('#charge-label').textContent=game.ultimateReady?`连按空格 ${Math.floor(game.charge)} / ${ULTIMATE_STEPS}`:`击退 ${game.ultimateHits} / ${ULTIMATE_HITS} 解锁`;$('.energy').classList.toggle('ready',game.ultimateReady);$('#air').value=game.air;$('#air-label').textContent=Math.ceil(game.air)+'%';
-  $('.energy').hidden=phase!=='playing'||!game.ultimateReady||!(game.charge>0||game.time<ultimateNoticeUntil);
+  $('#score').textContent=String(game.score).padStart(4,'0');$('#time').textContent=String(Math.floor(game.time/60)).padStart(2,'0')+':'+String(Math.floor(game.time%60)).padStart(2,'0');$('#wave').textContent=String(game.wave).padStart(2,'0');$('#charge').max=BARRAGE_STEPS;$('#charge').value=game.charge;
+  const warning=game.barrageState==='warning';
+  $('#barrage-title').textContent=warning?'攻击大爆发 · 准备双脚':'攻击大爆发 · 交替快踩！';
+  $('#charge-label').textContent=warning?Math.ceil(game.barrage.rushAt-game.time)+' 秒后来袭':Math.ceil(game.barrageRemaining)+' 秒 · '+Math.floor(game.charge)+' / '+BARRAGE_STEPS;
+  $('#step-left').classList.toggle('pressed',game.feet.left);$('#step-right').classList.toggle('pressed',game.feet.right);
+  $('#barrage-hint').textContent=warning?'等攻击开始，左右交替按下并松开':'下一脚：'+(game.lastChargeSide==='left'?'右脚 H':game.lastChargeSide==='right'?'左脚 F':'任选一脚开始');
+  $('#air').value=game.air;$('#air-label').textContent=Math.ceil(game.air)+'%';
+  $('.energy').hidden=phase!=='playing'||!game.barrage;
   if(phase!=='paused'){
     const threat=game.items.some(o=>!o.safe&&!o.warning&&points.some(p=>Math.hypot(o.x-p.x,o.y-p.y)<150));
     const next=gameExpression({over:phase==='over',burst:burstFlash,hurt:hurtFlash,charge:game.charge,hit:hitFlash,air:game.air,threat,motionSkin});

@@ -8,12 +8,12 @@
   <div class="air-meter"><div><span>气量</span><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
   <div class="best"><span>个人最佳</span><b id="best">0</b></div>
 </aside>
-<div class="energy" hidden><div><span>必杀 · 喘口气</span><span id="charge-label">击退 0 / 6 解锁</span></div><progress id="charge" max="6" value="0" aria-label="清场蓄力"></progress></div>
+<div class="energy" hidden aria-live="off"><div><span id="barrage-title">攻击大爆发</span><span id="charge-label">准备双脚</span></div><progress id="charge" max="12" value="0" aria-label="双脚交替踩踏蓄力"></progress><div class="barrage-feet"><span id="step-left">F 左脚</span><b>交替快踩</b><span id="step-right">H 右脚</span></div><p id="barrage-hint">按下后松开，再踩另一脚</p></div>
 <aside id="coach" class="coach" aria-label="操作说明">
   <p id="coach-copy" role="status">物品到细圆环时，按它标记的动作。<br>左边来用左脚，右边来用右脚。</p>
   <div id="coach-guide" class="coach-guide">
     <p><b>左脚</b> W / S / A / D <span>Q 旋转</span><br><b>右脚</b> I / K / J / L <span>U 旋转</span></p>
-    <small>依次对应 ↑ ↓ ← →<br>击退 6 件后，连按空格蓄力清场。</small>
+    <small>依次对应 ↑ ↓ ← →<br>大爆发时交替快按 F / H，蓄满清场。</small>
   </div>
   <button id="coach-action">知道了，开始 <small>空格</small></button>
 </aside>

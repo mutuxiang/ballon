@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>工作间隙 · AIR / BREAK</title>  <script type="module" crossorigin src="./assets/play-D-1_20TD.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/motion-expressions-bMRN8pNN.js">
-  <link rel="stylesheet" crossorigin href="./assets/play-nGkyi77M.css">
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>工作间隙 · AIR / BREAK</title>  <script type="module" crossorigin src="./assets/play-D4v65jyW.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/motion-expressions-C_oIjGy6.js">
+  <link rel="stylesheet" crossorigin href="./assets/play-DdcQPSeG.css">
 </head>
 <body><main id="game" data-phase="ready"><div id="world" aria-hidden="true"></div><canvas id="effects" aria-label="保护充气打工人的游玩区域"></canvas>
 <header><div class="tools"><button id="sound" aria-label="开启音效">声音 关</button><button id="pause">暂停</button><button id="fullscreen">全屏</button></div></header>
@@ -11,12 +11,12 @@
   <div class="air-meter"><div><span>气量</span><b id="air-label">100%</b></div><progress id="air" max="100" value="100" aria-label="气球人剩余气量"></progress></div>
   <div class="best"><span>个人最佳</span><b id="best">0</b></div>
 </aside>
-<div class="energy" hidden><div><span>必杀 · 喘口气</span><span id="charge-label">击退 0 / 6 解锁</span></div><progress id="charge" max="6" value="0" aria-label="清场蓄力"></progress></div>
+<div class="energy" hidden aria-live="off"><div><span id="barrage-title">攻击大爆发</span><span id="charge-label">准备双脚</span></div><progress id="charge" max="12" value="0" aria-label="双脚交替踩踏蓄力"></progress><div class="barrage-feet"><span id="step-left">F 左脚</span><b>交替快踩</b><span id="step-right">H 右脚</span></div><p id="barrage-hint">按下后松开，再踩另一脚</p></div>
 <aside id="coach" class="coach" aria-label="操作说明">
   <p id="coach-copy" role="status">物品到细圆环时，按它标记的动作。<br>左边来用左脚，右边来用右脚。</p>
   <div id="coach-guide" class="coach-guide">
     <p><b>左脚</b> W / S / A / D <span>Q 旋转</span><br><b>右脚</b> I / K / J / L <span>U 旋转</span></p>
-    <small>依次对应 ↑ ↓ ← →<br>击退 6 件后，连按空格蓄力清场。</small>
+    <small>依次对应 ↑ ↓ ← →<br>大爆发时交替快按 F / H，蓄满清场。</small>
   </div>
   <button id="coach-action">知道了，开始 <small>空格</small></button>
 </aside>
