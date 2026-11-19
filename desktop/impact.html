@@ -1,5 +1,45 @@
-<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style><canvas></canvas><script>
-const c=document.querySelector('canvas'),g=c.getContext('2d'),q=new URLSearchParams(location.search),x=Number(q.get('x')),y=Number(q.get('y')),d=devicePixelRatio;c.width=innerWidth*d;c.height=innerHeight*d;g.scale(d,d);
-const reach=Math.max(Math.hypot(x,y),Math.hypot(innerWidth-x,y),Math.hypot(x,innerHeight-y),Math.hypot(innerWidth-x,innerHeight-y))+40;let start;
-function draw(t){if(!start)start=t;const p=Math.min(1,(t-start)/1250),r=25+reach*(1-Math.pow(1-p,1.6));g.clearRect(0,0,innerWidth,innerHeight);g.globalAlpha=Math.pow(1-p,.7);for(const [offset,width,color] of [[0,7,'#fffdf1'],[0,3,'#252525'],[-14,1,'#252525']]){g.beginPath();g.arc(x,y,Math.max(0,r+offset),0,Math.PI*2);g.strokeStyle=color;g.lineWidth=width;g.stroke();}if(p<1)requestAnimationFrame(draw);}requestAnimationFrame(draw);
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;background:transparent;overflow:hidden}
+  canvas{display:block}
+</style>
+<canvas></canvas>
+<script type="module">
+import {createFocusEffects} from '../dist/focus-effects.js';
+const canvas = document.querySelector('canvas');
+const context = canvas.getContext('2d');
+const query = new URLSearchParams(location.search);
+const x = Number(query.get('x'));
+const y = Number(query.get('y'));
+canvas.width = innerWidth * devicePixelRatio;
+canvas.height = innerHeight * devicePixelRatio;
+context.scale(devicePixelRatio, devicePixelRatio);
+const effects = createFocusEffects(context, '../dist/focus-comic-atlas.png');
+effects.burst(x, y, Math.min(innerWidth, innerHeight) * .13, 7);
+const reach = Math.max(Math.hypot(x,y),Math.hypot(innerWidth-x,y),
+  Math.hypot(x,innerHeight-y),Math.hypot(innerWidth-x,innerHeight-y)) + 40;
+let start, previous;
+function draw(now) {
+  start ??= now;
+  previous ??= now;
+  const dt = Math.min((now - previous) / 1000, .05);
+  previous = now;
+  const progress = Math.min(1, (now - start) / 1800);
+  context.clearRect(0,0,innerWidth,innerHeight);
+  context.save();
+  context.globalAlpha = Math.pow(1-progress,.7);
+  const radius = 25 + reach * (1-Math.pow(1-progress,1.6));
+  for (const [width,color] of [[7,'#fffdf1'],[3,'#252525']]) {
+    context.beginPath();
+    context.arc(x,y,radius,0,Math.PI*2);
+    context.strokeStyle=color;
+    context.lineWidth=width;
+    context.stroke();
+  }
+  context.restore();
+  effects.draw(dt,innerWidth,innerHeight);
+  if(progress<1)requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
 </script>
