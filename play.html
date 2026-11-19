@@ -9,17 +9,12 @@
   <div class="best"><span>个人最佳</span><b id="best">0</b></div>
 </aside>
 <div class="energy" hidden><div><span>必杀 · 喘口气</span><span id="charge-label">击退 0 / 6 解锁</span></div><progress id="charge" max="6" value="0" aria-label="清场蓄力"></progress></div>
-<section id="overlay" class="overlay" aria-labelledby="card-title"><div class="card">
-  <div class="welcome-kicker"><span class="welcome-tag">工作间隙</span><span class="eyebrow" id="card-tag">TAKE A LITTLE BREAK</span></div>
-  <span class="welcome-stamp" aria-hidden="true">松口气!</span>
-  <h1 id="card-title">工作放一放，<br><em>身体动一动。</em></h1>
-  <p id="card-copy">左边来，动左脚。右边来，动右脚。<br>看清物品上的动作，在细圆环处跟上节拍。</p>
-  <div class="control-guide" aria-label="键盘操作说明">
-    <div><b>左脚</b><span><kbd>W</kbd><kbd>S</kbd><kbd>A</kbd><kbd>D</kbd></span><small><kbd>Q</kbd> 旋转</small></div>
-    <div><b>右脚</b><span><kbd>I</kbd><kbd>K</kbd><kbd>J</kbd><kbd>L</kbd></span><small><kbd>U</kbd> 旋转</small></div>
-    <p>按键依次为前 / 后 / 左 / 右</p>
+<aside id="coach" class="coach" aria-label="操作说明">
+  <p id="coach-copy" role="status">物品到细圆环时，按它标记的动作。<br>左边来用左脚，右边来用右脚。</p>
+  <div id="coach-guide" class="coach-guide">
+    <p><b>左脚</b> W / S / A / D <span>Q 旋转</span><br><b>右脚</b> I / K / J / L <span>U 旋转</span></p>
+    <small>依次对应 ↑ ↓ ← →<br>击退 6 件后，连按空格蓄力清场。</small>
   </div>
-  <button id="start" class="primary">开始小休<span aria-hidden="true">▶</span></button>
-  <p class="card-hint">击退 6 件解锁必杀 · 连按空格蓄力清场<br>随时按 P 暂停，慢慢找节奏。</p>
-</div></section>
+  <button id="coach-action">知道了，开始 <small>空格</small></button>
+</aside>
 </main><script type="module" src="./game.js"></script></body></html>
