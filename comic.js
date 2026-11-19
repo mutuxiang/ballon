@@ -19,7 +19,7 @@ export function createComicHatching(scene,camera){
   material.userData.outlineParameters={visible:false};
   const mesh=new THREE.Mesh(geometry,material);mesh.name='Comic_background_lines';mesh.frustumCulled=false;mesh.visible=false;scene.add(mesh);
   const inverse=new THREE.Quaternion(),forward=new THREE.Vector3(),local=new THREE.Vector3(),anchor=new THREE.Vector3(),previousHead=new THREE.Vector3();
-  let enabled=false,time=0,frame=0,velocity=0,hasPrevious=false;
+  let enabled=false,time=0,frame=0,velocity=0,hasPrevious=false,trailSide=1;
   function update(dt,simulation){
     if(!enabled)return;
     const delta=Number.isFinite(dt)?Math.max(0,dt):0;
@@ -28,6 +28,7 @@ export function createComicHatching(scene,camera){
     if(delta>0){
       const speed=hasPrevious?head.distanceTo(previousHead)/Math.max(delta,.001):0;
       velocity=THREE.MathUtils.lerp(velocity,Math.min(speed,6),1-Math.exp(-delta*5));
+      if(hasPrevious){const travel=head.clone().sub(previousHead).applyQuaternion(camera.quaternion.clone().invert());if(Math.abs(travel.x)>.001)trailSide=travel.x>0?-1:1;}
       previousHead.copy(head);hasPrevious=true;
     }
     camera.updateMatrixWorld();inverse.copy(camera.quaternion).invert();forward.set(0,0,-1).applyQuaternion(camera.quaternion);
@@ -45,7 +46,7 @@ export function createComicHatching(scene,camera){
       }else anchor.copy(simulation.arms[stroke.sign<0?0:1].nodes[stroke.index].p);
       local.copy(anchor).sub(camera.position).applyQuaternion(inverse);
       const scale=distance/Math.max(.2,-local.z),x=local.x*scale,y=local.y*scale;
-      const seed=stroke.seed,angle=Math.PI/4;
+      const seed=stroke.seed,angle=trailSide>0?Math.PI/4:Math.PI*3/4;
       const dx=Math.cos(angle),dy=Math.sin(angle),nx=-dy,ny=dx;
       // Each stroke has its own length envelope, frame-to-frame variation and
       // small asymmetric kinks instead of a shared, mechanically pulsing scale.

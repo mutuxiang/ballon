@@ -163,7 +163,7 @@ const haloGeometry=new THREE.BufferGeometry(),haloPositions=[];
 for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;haloPositions.push(Math.cos(a)*r,Math.sin(a)*r,0,Math.cos(a)*R,Math.sin(a)*R,0);}
 haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
-const pedals=mountPedals({selectState,simulation,petMode});
+const pedals=mountPedals({selectState,simulation,petMode,camera});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
@@ -185,7 +185,7 @@ renderer.setAnimationLoop(()=>{
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004;
   comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&head.p.y>.5);
-  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation);
+  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation,focusSprite.material.color.getStyle());focusSprite.scale.setScalar(1+mangaMotion.burst*.28);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
