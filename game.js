@@ -8,7 +8,8 @@ import {createClothing} from './clothing.js';
 import {createSkinGradient} from './skin-gradient.js';
 import {WorkGame,BARRAGE_STEPS,defenseAnchor,ACTION_LABELS,HIT_WINDOW} from './game-core.js';
 import {createMotionExpressions} from './motion-expressions.js';
-import {gameExpression} from './game-expression.js';
+import {createGameExpressions} from './game-expression.js';
+import {applyExerciseMove,updateExerciseTurn} from './game-motion.js';
 import {hazardRotation,loadAtlas} from './game-art.js';
 import {createPoseBackdrop} from './pose-backdrop.js';
 import './game.css';
@@ -21,41 +22,22 @@ const camera=new THREE.OrthographicCamera(-10,10,11.05,-3.55,.1,100);camera.posi
 const character=createDancer({rest:true,separateFace:true}).group;applyToon(character);scene.add(character);
 const skins=createSkins(character);const clothing=createClothing(character,{onPaletteChange:p=>skins.setPalette(p)});clothing.select('pastel');
 const skinGradient=createSkinGradient(character,skins);skinGradient.setEnabled(true);
-const simulation=new AirPhysics(character,{seed:4721,depthMotion:.15});simulation.setState('high');
+const simulation=new AirPhysics(character,{seed:4721,depthMotion:.65});simulation.setState('high');
+const faceController=createGameExpressions();
 let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
 const canvas=$('#effects'),ctx=canvas.getContext('2d');
 const poseBackdrop=createPoseBackdrop($('#pose-layer'));
-const officeCanvas=$('#office-layer'),officeCtx=officeCanvas.getContext('2d');
 const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
-const officeAtlas=loadAtlas('./office-props-hatched.png',2,2,drawOffice);
 let phase='ready',w=innerWidth,h=innerHeight,scale=h/800,last=0,particles=[],best=0,sound=false,audio;
 let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
 const axisLatch={left:null,right:null};const heldKeys=new Set();
 try{best=Number(localStorage.getItem('air-worker-best')||0)||0;}catch{}$('#best').textContent=best;
-function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(14.6,7.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';poseBackdrop.resize(w,h);drawOffice();}
-function drawOffice(){
-  const dpr=Math.min(devicePixelRatio,2);officeCanvas.width=w*dpr;officeCanvas.height=h*dpr;
-  officeCtx.setTransform(dpr,0,0,dpr,0,0);officeCtx.clearRect(0,0,w,h);
-  if(!officeAtlas.ready)return;
-  if(w>800){
-    const sideSpace=Math.max(90,(w-game.ringRadius*scale*2)/2-50),size=Math.min(230,sideSpace*.75,h*.32);
-    officeCtx.globalAlpha=.24;
-    officeAtlas.draw(officeCtx,2,w*.1,h*.36,size*.75);
-    officeAtlas.draw(officeCtx,0,w*.14,h*.76,size);
-    officeAtlas.draw(officeCtx,3,w*.88,h*.35,size*.85);
-    officeAtlas.draw(officeCtx,1,w*.88,h*.77,size*.83);
-  }else{
-    officeCtx.globalAlpha=.16;const size=Math.min(130,w*.29);
-    officeAtlas.draw(officeCtx,0,size*.42,h-size*.48,size);
-    officeAtlas.draw(officeCtx,1,w-size*.34,h-size*.5,size);
-  }
-  officeCtx.globalAlpha=1;
-}
+function resize(){w=innerWidth;h=innerHeight;scale=h/800;game.setViewport(w/scale/2);renderer.setSize(w,h);const ratio=w/h,viewHeight=Math.max(14.6,7.5/ratio);camera.left=-viewHeight*ratio/2;camera.right=viewHeight*ratio/2;camera.top=3.75+viewHeight/2;camera.bottom=3.75-viewHeight/2;camera.updateProjectionMatrix();canvas.width=w*Math.min(devicePixelRatio,2);canvas.height=h*Math.min(devicePixelRatio,2);canvas.style.width=w+'px';canvas.style.height=h+'px';poseBackdrop.resize(w,h);}
 addEventListener('resize',resize);resize();
-function project(v){const p=v.clone().project(camera);return {x:p.x*w/2/scale,y:(1-p.y)*400,r:27};}
+function project(v){const p=character.localToWorld(v.clone()).project(camera);return {x:p.x*w/2/scale,y:(1-p.y)*400,r:27};}
 function body(){return [...simulation.nodes].reverse().filter((_,i)=>i%3===0).map(n=>project(n.p));}
 function tone(freq,duration=.08){if(!sound)return;try{audio??=new AudioContext();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.connect(gain);gain.connect(audio.destination);osc.frequency.setValueAtTime(freq,audio.currentTime);osc.frequency.exponentialRampToValueAtTime(freq*.5,audio.currentTime+duration);gain.gain.setValueAtTime(.04,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);osc.start();osc.stop(audio.currentTime+duration);}catch{}}
 // Keep multiple physical input sources independent (keyboard, pointer, hardware).
@@ -112,7 +94,7 @@ function updateInput(points){
 function panel(copy,button){$('#coach').hidden=false;$('#coach-copy').textContent=copy;$('#coach-action').textContent=button;$('#coach-action').focus();}
 function togglePause(){release();if(phase==='playing'){phase='paused';panel('先喘口气。准备好再继续。','继续活动');$('#pause').textContent='继续';}else if(phase==='paused'){phase='playing';$('#coach').hidden=true;$('#coach-action').blur();$('#pause').textContent='暂停';}}
 $('#pause').onclick=togglePause;
-$('#coach-action').onclick=()=>{if(phase==='paused'){togglePause();return;}if(phase==='playing')return;game.reset();selectMouse(mouseSide);particles=[];hitFlash=0;hurtFlash=0;burstFlash=0;judgment='';judgmentTime=0;moveFlash=0;simulation.setState('high');for(let i=0;i<25;i++){simulation.nodes[i].p.set(0,.64+i*4.9/24,0);simulation.nodes[i].old.copy(simulation.nodes[i].p);simulation.nodes[i].pressure=1;}phase='playing';$('#coach').hidden=true;$('#coach-action').blur();tone(440);};
+$('#coach-action').onclick=()=>{if(phase==='paused'){togglePause();return;}if(phase==='playing')return;game.reset();faceController.reset();character.rotation.y=0;character.userData.exerciseTurn=0;selectMouse(mouseSide);particles=[];hitFlash=0;hurtFlash=0;burstFlash=0;judgment='';judgmentTime=0;moveFlash=0;simulation.setState('high');for(let i=0;i<25;i++){simulation.nodes[i].p.set(0,.64+i*4.9/24,0);simulation.nodes[i].old.copy(simulation.nodes[i].p);simulation.nodes[i].pressure=1;}phase='playing';$('#coach').hidden=true;$('#coach-action').blur();tone(440);};
 $('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#game').requestFullscreen();}catch{$('#fullscreen').title='浏览器暂未允许全屏';}};
 document.addEventListener('fullscreenchange',()=>{$('#fullscreen').textContent=document.fullscreenElement?'退出全屏':'全屏';resize();});
 $('#sound').onclick=()=>{sound=!sound;$('#sound').textContent='声音 '+(sound?'开':'关');$('#sound').setAttribute('aria-label',sound?'关闭音效':'开启音效');tone(550);};
@@ -156,7 +138,7 @@ function draw(dt,points){
   if(game.burst>0){ctx.strokeStyle='#aa783b';ctx.lineWidth=4;ctx.globalAlpha=game.burst;ctx.beginPath();ctx.arc(points[0].x,points[0].y,(1-game.burst)*800+40,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
 }
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000||0,.035);last=now;
-  if(phase!=='paused'){judgmentTime=Math.max(0,judgmentTime-dt);moveFlash=Math.max(0,moveFlash-dt);hitFlash=Math.max(0,hitFlash-dt);hurtFlash=Math.max(0,hurtFlash-dt);burstFlash=Math.max(0,burstFlash-dt);simulation.target=phase==='over'?0:phase==='ready'?1:.38+game.air/100*.62;simulation.pedalLean=(Number(game.feet.right)-Number(game.feet.left))*.5;simulation.superMode=burstFlash>0;simulation.update(dt);skinGradient.update(simulation);expressions.update(dt,simulation);skins.setFocus(burstFlash>0);}
+  if(phase!=='paused'){judgmentTime=Math.max(0,judgmentTime-dt);moveFlash=Math.max(0,moveFlash-dt);hitFlash=Math.max(0,hitFlash-dt);hurtFlash=Math.max(0,hurtFlash-dt);burstFlash=Math.max(0,burstFlash-dt);simulation.target=phase==='over'?0:phase==='ready'?1:.38+game.air/100*.62;simulation.pedalLean=(Number(game.feet.right)-Number(game.feet.left))*.5;simulation.superMode=burstFlash>0;updateExerciseTurn(character,dt);simulation.update(dt);skinGradient.update(simulation);expressions.update(dt,simulation);skins.setFocus(burstFlash>0);}
   if($('#game').dataset.phase!==phase)$('#game').dataset.phase=phase;
   const points=body();
   if(phase==='playing'){
@@ -164,7 +146,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
     game.update(dt,points);
     for(const ev of game.events.splice(0)){
       if(ev.type==='judge'){judgment=ev.text;judgmentQuality=ev.quality;judgmentTime=.7;}
-      if(ev.type==='action'){lastMove=ev.action;moveFlash=.4;tone(260,.04);const sign=ev.action==='left'?-1:ev.action==='right'?1:0;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.008;}
+      if(ev.type==='action'){lastMove=ev.action;moveFlash=.4;tone(260,.04);applyExerciseMove(simulation,character,ev.action,ev.side);}
 
       if(ev.type==='step'){tone(ev.side==='left'?220:300);for(let i=12;i<25;i++)simulation.nodes[i].old.x-=(ev.side==='left'?-.003:.003);}
       if(ev.type==='hit'){hitFlash=.8;puff(ev.x,ev.y);tone(650,.045);}
@@ -185,7 +167,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
   $('.energy').hidden=phase!=='playing'||!game.barrage;
   if(phase!=='paused'){
     const threat=game.items.some(o=>!o.safe&&!o.warning&&points.some(p=>Math.hypot(o.x-p.x,o.y-p.y)<150));
-    const next=gameExpression({over:phase==='over',burst:burstFlash,hurt:hurtFlash,charge:game.charge,hit:hitFlash,air:game.air,threat,motionSkin});
+    const next=faceController.update(dt,{over:phase==='over',burst:burstFlash,hurt:hurtFlash,charge:game.charge,hit:hitFlash,air:game.air,threat,motionSkin});
     if(next!==face){skins.select(next);face=next;}
   }
   character.visible=game.invulnerable<=0||Math.floor(now/100)%2===0||phase!=='playing';silhouette.render(scene,camera);draw(phase==='paused'?0:dt,points);
