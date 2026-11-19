@@ -23,7 +23,8 @@ export function mountPedals({selectState,simulation,camera}){
   let time=0;
   const charge=createCharge(active=>{simulation.superMode=active;window.desktopPet?.focus(active);document.documentElement.classList.toggle('super-mode',active);selectState(active?'high':['none','low','high'][Number(controller.feet.left)+Number(controller.feet.right)]);});
   const controller=createPedals({onState(state,feet){if(!charge.active)selectState(state);simulation.pedalLean=feet.left===feet.right?0:feet.left?-.8:.8;},onBeat({side,down}){
-    if(down){charge.beat(side,time);const sign=side==='left'?-1:1;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.007*(i-12)/12;}
+    dispatchEvent(new CustomEvent('air-pedal',{detail:{side,down,feet:{...controller.feet}}}));
+    if(down){if(!document.documentElement.classList.contains('air-game'))charge.beat(side,time);const sign=side==='left'?-1:1;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.007*(i-12)/12;}
   }});
   if(!window.desktopPet){
     const key=(e,down)=>{if(e.target.matches('input,textarea,select'))return;const side={KeyA:'left',KeyL:'right'}[e.code];if(side){e.preventDefault();controller.set(side,down);}};

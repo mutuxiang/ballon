@@ -1,4 +1,5 @@
 import {createMangaMotion} from './manga-motion.js';
+import {mountAirGame} from './play-mode.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -19,7 +20,7 @@ const petMode=new URLSearchParams(location.search).has('pet');
 if(petMode){document.documentElement.classList.add('desktop-pet');const style=document.createElement('style');style.textContent='html.desktop-pet,html.desktop-pet body{background:transparent!important;overflow:hidden} .desktop-pet main{min-height:0;height:100vh} .desktop-pet header,.desktop-pet .intro,.desktop-pet .hint,.desktop-pet .air-states,.desktop-pet .controls,.desktop-pet #progress{display:none!important}';document.head.append(style);}
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#edf0eb');
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:petMode});
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 if(petMode){scene.background=null;renderer.setClearColor(0,0);}
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -164,19 +165,21 @@ for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;h
 haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,petMode,camera});
+const airGame=mountAirGame({renderer,scene,camera,controls,simulation,pedals,selectState,floor,ring,onPlaying:()=>{playing=true;speed=1;}});
 if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   let dragging=false;
-  renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
+  renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0&&!airGame.active){dragging=true;renderer.domElement.setPointerCapture(e.pointerId);window.desktopPet.drag('start');}});
   renderer.domElement.addEventListener('pointermove',()=>{if(dragging)window.desktopPet.drag('move');});
   renderer.domElement.addEventListener('pointerup',()=>{dragging=false;window.desktopPet.drag('end');});
 }
 let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
-  if(current&&playing)simulation.update(dt*speed);
+  airGame.update(dt);
+  if(current&&playing&&!airGame.paused)simulation.update(dt*speed);
   motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);

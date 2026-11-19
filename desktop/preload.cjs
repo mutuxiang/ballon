@@ -1,5 +1,6 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('desktopPet',{
+  game:active=>ipcRenderer.send('pet:game',active),
   burst:point=>ipcRenderer.send('pet:burst',point),
   sample:point=>ipcRenderer.send('pet:sample',point),
   focus:active=>ipcRenderer.send('pet:focus',active),
