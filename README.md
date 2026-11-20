@@ -8,7 +8,7 @@
 
 **生成仅为交互演示**：所有照片都展示同一个「微笑营业 / 粉蓝青绿」现有小人，不识别人脸、不生成真人皮肤。照片只保存在当前弹窗的内存预览中，不上传、不写入本地存储；关闭即释放。应用使用现有表情和服装选择机制，游戏继续保留随动作切换的表情；演示不实现按日生成、历史照片或跨日换肤。游戏中打开弹窗会暂停，关闭后手动继续。
 
-运行 `npm install`、`npm run dev` 后访问模型页或 `/play.html`。桌宠入口使用 `npm run pet`。相机生命周期测试：`node --test today-camera.test.mjs`。
+运行 `npm install`、`npm run dev` 后访问模型页或 `/play.html`。桌宠入口使用 `npm run pet`。右键「拍下今天的我（演示）」打开独立的 `photo.html` 拍照窗口，窗口在当前屏幕居中并显示在桌宠前方；重复点击会恢复、聚焦已有窗口，关闭后可以重新打开。相机及窗口生命周期测试：`node --test today-camera.test.mjs desktop/today-photo-window.test.cjs`。
 
 ## 主题皮肤
 

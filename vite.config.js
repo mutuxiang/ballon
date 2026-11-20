@@ -1,2 +1,2 @@
 import {defineConfig} from 'vite';
-export default defineConfig({build:{rollupOptions:{input:{main:'index.html',play:'play.html'}}}});
+export default defineConfig({build:{rollupOptions:{input:{main:'index.html',play:'play.html',photo:'photo.html'}}}});
