@@ -18,7 +18,7 @@ export const THEMES=[
 // participate in screen-space contacts; front-wall occlusion is independent.
 const PARTS={
   fishing:[
-    {cell:0,size:5.75,position:[0,2.05,0],container:'bowl'},
+    {cell:0,size:5.4,position:[0,1.75,0],container:'bowl'},
     {cell:1,size:1.65,anchor:'face',position:[.12,4.75,.77]},
     {cell:2,size:.85,position:[-1.85,4.8,0],float:.12}
   ],
