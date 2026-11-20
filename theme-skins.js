@@ -235,8 +235,18 @@ export function createThemeSkins(scene,character,camera,{
         if(part.container)placeContainerLayer(sprite,world,size,camera,layer==='front'?1.3:-1.3);
         else if(part.relative)placeContainerLayer(sprite,world,size,camera,part.depth||0);
         else if(part.wear){
-          const pressure=simulation.sample(y||3.87).p,scale=part.wear==='bag'?1:.52+.48*pressure;
-          const depth=part.wear==='bag'?.38:.2+.65*pressure;
+          const pressure=simulation.sample(y||3.87).p;
+          // A padded neck pillow retains its volume when the wearer deflates.
+          // Keep its front lobes beyond the neck even when it folds sideways.
+          const scale=part.wear==='bag'?1:part.wear==='pillow'?.82+.18*pressure:.52+.48*pressure;
+          const depth=part.wear==='bag'?.38:part.wear==='pillow'?.5+.4*pressure:.2+.65*pressure;
+          if(part.wear==='pillow'&&layer==='front'){
+            // The deflated torso folds across the billboard plane. Its front
+            // lobes still sit over the neck, while the rear band stays behind.
+            // Hysteresis avoids flickering during pressure fluctuations.
+            if(pressure<.4)sprite.material.depthTest=mask.material.depthTest=false;
+            else if(pressure>.55)sprite.material.depthTest=mask.material.depthTest=true;
+          }
           placeContainerLayer(sprite,world,size.clone().multiplyScalar(scale),camera,layer==='front'?depth:-depth);
         }
         else sprite.position.copy(world);
