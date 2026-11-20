@@ -1,3 +1,4 @@
+const {APP_ICON}=require('./branding.cjs');
 // Own the window independently of the native popup menu's lifetime.
 function createTodayPhotoWindow({BrowserWindow,screen,parent,preloadPath,pagePath,onApply}){
   let current=null;
@@ -9,11 +10,12 @@ function createTodayPhotoWindow({BrowserWindow,screen,parent,preloadPath,pagePat
   function open(){
     if(current&&!current.isDestroyed()){show(current);return current;}
     const area=screen.getDisplayMatching(parent.getBounds()).workArea;
-    const width=Math.min(760,area.width-32),height=Math.min(820,area.height-32);
+    const width=Math.min(760,area.width-32),height=Math.min(760,area.height-32);
     const window=new BrowserWindow({
+      icon:APP_ICON,
       parent,show:false,width,height,minWidth:Math.min(520,width),minHeight:Math.min(500,height),
       x:Math.round(area.x+(area.width-width)/2),y:Math.round(area.y+(area.height-height)/2),
-      title:'今天的我 · 拍照',backgroundColor:'#f2eee5',
+      title:'今日形象',backgroundColor:'#fdfcf9',
       webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:true},
     });
     current=window;
@@ -28,7 +30,10 @@ function createTodayPhotoWindow({BrowserWindow,screen,parent,preloadPath,pagePat
   }
   return {
     open,
-    apply(sender){if(!current||current.isDestroyed()||sender!==current.webContents)return false;onApply();current.close();return true;},
+    async apply(sender,appearance){
+      if(!current||current.isDestroyed()||sender!==current.webContents)throw new Error('请重新打开自定义窗口。');
+      await onApply(appearance);return {ok:true};
+    },
     close(){if(current&&!current.isDestroyed())current.close();},
   };
 }

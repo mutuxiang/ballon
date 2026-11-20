@@ -1,1 +1,0 @@
-import{a1 as o}from"./today-avatar-D22LaJt-.js";let e=!1;const t=o(document.querySelector("#photo-launcher"),{onApply:()=>{window.desktopPet&&(e=!0,window.desktopPet.applyTodayAvatar())}});document.querySelector(".today-dialog").addEventListener("close",()=>{window.desktopPet?e||window.close():document.querySelector("#photo-launcher").style.display="block"});t.open();

@@ -16,7 +16,8 @@ import {createSkinGradient} from './skin-gradient.js';
 import {createMotionExpressions} from './motion-expressions.js';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import './skins.css';
-import {mountTodayAvatar,TODAY_DEMO} from './today-avatar.js';
+import {mountTodayAvatar} from './today-avatar.js';
+import {createTodayAppearance,mountStoredAppearance} from './today-appearance.js';
 
 const stage=document.querySelector('#stage');
 const petMode=new URLSearchParams(location.search).has('pet');
@@ -115,14 +116,11 @@ for(const button of skinPanel.querySelectorAll('[data-expression-mode]'))button.
 let savedSkin,savedExpressionMode;try{savedSkin=localStorage.getItem('air-worker-skin');savedExpressionMode=localStorage.getItem('air-worker-expression-mode');}catch{}
 manualSkinId=SKINS.some(s=>s.id===savedSkin)?savedSkin:SKINS[0].id;
 applySkin(manualSkinId);setExpressionMode(savedExpressionMode==='motion'?'motion':'manual',{remember:false});
-function applyTodayAvatar(){
-  themePicker.select('none');selectOutfit(TODAY_DEMO.outfit);selectSkin(TODAY_DEMO.skin);
-}
+const todayAppearance=createTodayAppearance(character,skins,skinGradient);
+const storedAppearance=mountStoredAppearance(todayAppearance);
+function applyTodayAvatar(appearance){return storedAppearance.set(appearance);}
 if(!petMode){
-  const todayAvatar=mountTodayAvatar(document.querySelector('#air-states'),{onApply:()=>{
-    applyTodayAvatar();
-    if(new URLSearchParams(location.search).has('todayPhoto'))window.desktopPet?.applyTodayAvatar();
-  }});
+  const todayAvatar=mountTodayAvatar(document.querySelector('#air-states'),{onApply:applyTodayAvatar});
   document.querySelector('#air-states').prepend(todayAvatar.entry);
   if(new URLSearchParams(location.search).has('todayPhoto'))todayAvatar.open();
 }
@@ -183,7 +181,11 @@ haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositi
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
-  window.desktopPet.onAction(({type})=>{if(type==='today-avatar')applyTodayAvatar();});
+  window.desktopPet.onAction(({type,value})=>{
+    if(type!=='today-appearance')return;
+    try{applyTodayAvatar(value.appearance);window.desktopPet.appearanceApplied(value.id);}
+    catch(error){window.desktopPet.appearanceApplied(value.id,error.message);}
+  });
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),themes:THEMES.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='theme')themePicker.select(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});

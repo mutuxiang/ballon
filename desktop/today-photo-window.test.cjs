@@ -28,7 +28,7 @@ test('opens the dedicated page above the pet, fits work area and shows after loa
   const f=fixture();const window=f.controller.open();await Promise.resolve();
   assert.equal(window.file,'dist/photo.html');assert.equal(window.options.parent,f.parent);
   assert.equal(window.options.show,false);assert.equal(window.options.height,648);
-  assert.equal(window.options.x,360);assert.equal(window.options.y,16);
+  assert.equal(window.options.x,100+(1280-window.options.width)/2);assert.equal(window.options.y,16);
   assert.deepEqual(window.calls,['show','moveTop','focus']);
 });
 test('repeated opening restores the existing window; closing allows a fresh window',()=>{
@@ -38,9 +38,9 @@ test('repeated opening restores the existing window; closing allows a fresh wind
   f.controller.close();assert.equal(first.destroyed,true);
   assert.notEqual(f.controller.open(),first);assert.equal(f.windows.length,2);
 });
-test('only the current photo window may apply a preset to the pet',()=>{
+test('only the current photo window may apply colors and it stays open until acknowledged',async()=>{
   const f=fixture();const window=f.controller.open();
-  assert.equal(f.controller.apply({}),false);assert.equal(f.applied,0);
-  assert.equal(f.controller.apply(window.webContents),true);assert.equal(f.applied,1);
-  assert.equal(window.destroyed,true);assert.equal(f.controller.apply(window.webContents),false);
+  await assert.rejects(f.controller.apply({}));assert.equal(f.applied,0);
+  assert.deepEqual(await f.controller.apply(window.webContents,{colors:{}}),{ok:true});assert.equal(f.applied,1);
+  assert.equal(window.isDestroyed(),false);f.controller.close();await assert.rejects(f.controller.apply(window.webContents));
 });

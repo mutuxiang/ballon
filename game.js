@@ -16,6 +16,7 @@ import {createThemeSkins} from './theme-skins.js';
 import {mountThemePicker} from './theme-picker.js';
 import './game.css';
 import {mountTodayAvatar} from './today-avatar.js';
+import {createTodayAppearance,mountStoredAppearance} from './today-appearance.js';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
@@ -36,9 +37,8 @@ const canvas=$('#effects'),ctx=canvas.getContext('2d');
 const poseBackdrop=createPoseBackdrop($('#pose-layer'));
 const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
 let phase='ready',w=innerWidth,h=innerHeight,scale=h/800,last=0,particles=[],best=0,sound=false,audio;
-const todayAvatar=mountTodayAvatar($('.tools'),{compact:true,onOpen:()=>{if(phase==='playing')togglePause();},onApply:({skin,outfit})=>{
-  themePicker.select('none');clothing.select(outfit);skins.select(skin);face='';
-}});
+const storedAppearance=mountStoredAppearance(createTodayAppearance(character,skins,skinGradient));
+const todayAvatar=mountTodayAvatar($('.tools'),{compact:true,onOpen:()=>{if(phase==='playing')togglePause();},onApply:appearance=>storedAppearance.set(appearance)});
 $('.tools').prepend(todayAvatar.entry);
 let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
