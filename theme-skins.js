@@ -18,7 +18,7 @@ export const THEMES=[
 // participate in screen-space contacts; front-wall occlusion is independent.
 const PARTS={
   fishing:[
-    {cell:0,size:4.6,stretch:[1.3,1],position:[0,1.65,0],container:'bowl'},
+    {cell:0,size:5.75,position:[0,2.05,0],container:'bowl'},
     {cell:1,size:1.65,anchor:'face',position:[.12,4.75,.77]},
     {cell:2,size:.85,position:[-1.85,4.8,0],float:.12}
   ],
@@ -150,8 +150,7 @@ export function createThemeSkins(scene,character,camera,{
       if(entry.part.flipX){entry.map.offset.x+=entry.map.repeat.x;entry.map.repeat.x*=-1;}
       entry.map.needsUpdate=true;
       const factor=size/Math.max(bounds.width,bounds.height);
-      const [stretchX,stretchY]=entry.part.stretch||[1,1];
-      entry.size.set(bounds.width*factor*stretchX,bounds.height*factor*stretchY);entry.sprite.scale.set(entry.size.x,entry.size.y,1);
+      entry.size.set(bounds.width*factor,bounds.height*factor);entry.sprite.scale.set(entry.size.x,entry.size.y,1);
       if(entry.part.container&&entry.layer==='front')entry.collider=new OutlineCollider(extractVesselOutline(pixels,canvas.width,bounds,entry.part.container),entry.size.x,entry.size.y);
     }
     connect();
