@@ -9,11 +9,10 @@ import {createDancer} from './model.mjs';
 import {AirPhysics} from './physics.js';
 import {SilhouetteEffect} from './silhouette.js';
 import {applyToon} from './toon.js';
-import {createSkins,SKINS} from './skins.js';
-import {createClothing,OUTFITS} from './clothing.js';
+import {createSkins} from './skins.js';
+import {createClothing} from './clothing.js';
 import {createComicHatching} from './comic.js';
 import {createSkinGradient} from './skin-gradient.js';
-import {createMotionExpressions} from './motion-expressions.js';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import './skins.css';
 
@@ -60,7 +59,6 @@ const comic=createComicHatching(scene,camera);
 const clothing=createClothing(character,{onPaletteChange:palette=>{
   skins.setPalette(palette);
   document.documentElement.style.setProperty('--skin-tone',palette.skinColor);
-  document.querySelectorAll('[data-skin] img').forEach((image,index)=>{image.src=skins.thumbnail(index);});
 }});
 const focusManga=createFocusManga(scene,character,camera);
 const effect=new SilhouetteEffect(renderer,character);
@@ -68,59 +66,9 @@ const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMo
 const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
 themeSkins.bind(simulation);
 const themePicker=mountThemePicker(document.querySelector('#air-states'),themeSkins);
-const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
-outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
-document.querySelector('#air-states').append(outfitPanel);
-for(const outfit of OUTFITS){
-  const button=document.createElement('button');button.type='button';button.dataset.outfit=outfit.id;button.title=outfit.note;button.textContent=outfit.name;
-  const swatches=document.createElement('span');swatches.className='outfit-swatches';swatches.setAttribute('aria-hidden','true');
-  for(const color of outfit.swatches){const dot=document.createElement('i');dot.style.backgroundColor=color;swatches.append(dot);}button.append(swatches);
-  button.onclick=()=>selectOutfit(outfit.id);outfitPanel.querySelector('.outfit-buttons').append(button);
-}
-function selectOutfit(id){
-  if(!clothing.select(id))return;
-  comic.setEnabled(id==='comic');
-  skinGradient.setEnabled(true);
-  for(const button of outfitPanel.querySelectorAll('[data-outfit]'))button.setAttribute('aria-pressed',String(button.dataset.outfit===id));
-  try{localStorage.setItem('air-worker-outfit',id);}catch{}
-}
-let savedOutfit;try{savedOutfit=localStorage.getItem('air-worker-outfit');}catch{}
-selectOutfit(OUTFITS.some(outfit=>outfit.id===savedOutfit)?savedOutfit:'plain');
-const skinPanel=document.createElement('section');skinPanel.className='skin-picker';skinPanel.setAttribute('aria-label','表情皮肤');
-skinPanel.innerHTML=`<div class="skin-heading"><h2>今天用哪张脸？</h2><span>${SKINS.length} 款表情</span></div><div class="expression-mode-buttons" role="group" aria-label="表情模式"><button type="button" data-expression-mode="manual">手动选择</button><button type="button" data-expression-mode="motion" title="随实际运动切换；点击任意表情可恢复手动">随动作切换</button></div><div class="skin-grid"></div><p id="skin-description" aria-live="polite"></p>`;
-document.querySelector('#air-states').append(skinPanel);
-const skinGrid=skinPanel.querySelector('.skin-grid');
-const motionExpressions=createMotionExpressions((id,reason)=>applySkin(id,reason));
-let manualSkinId=SKINS[0].id;
-SKINS.forEach((skin,index)=>{
-  const button=document.createElement('button');button.type='button';button.dataset.skin=skin.id;button.setAttribute('aria-pressed','false');button.title=('参考图 '+(index+1))+' · '+skin.note;
-  const image=document.createElement('img');image.src=skins.thumbnail(index);image.alt='';image.width=76;image.height=76;
-  const label=document.createElement('span');label.textContent=skin.name;button.append(image,label);
-  button.onclick=()=>selectSkin(skin.id);skinGrid.append(button);
-});
-function applySkin(id,reason=''){
-  if(!skins.select(id))return false;
-  for(const button of skinGrid.children)button.setAttribute('aria-pressed',String(button.dataset.skin===id));
-  document.querySelector('#skin-description').textContent=(reason?reason+' · ':'')+SKINS.find(s=>s.id===id).note;
-  return true;
-}
-function setExpressionMode(mode,{remember=true}={}){
-  if(!['manual','motion'].includes(mode))return false;
-  motionExpressions.setEnabled(mode==='motion',simulation);
-  for(const button of skinPanel.querySelectorAll('[data-expression-mode]'))button.setAttribute('aria-pressed',String(button.dataset.expressionMode===mode));
-  if(mode==='manual')applySkin(manualSkinId);
-  if(remember)try{localStorage.setItem('air-worker-expression-mode',mode);}catch{}
-  return true;
-}
-function selectSkin(id){
-  if(!SKINS.some(s=>s.id===id))return;
-  manualSkinId=id;setExpressionMode('manual');
-  try{localStorage.setItem('air-worker-skin',id);}catch{/* Storage may be disabled. */}
-}
-for(const button of skinPanel.querySelectorAll('[data-expression-mode]'))button.onclick=()=>setExpressionMode(button.dataset.expressionMode);
-let savedSkin,savedExpressionMode;try{savedSkin=localStorage.getItem('air-worker-skin');savedExpressionMode=localStorage.getItem('air-worker-expression-mode');}catch{}
-manualSkinId=SKINS.some(s=>s.id===savedSkin)?savedSkin:SKINS[0].id;
-applySkin(manualSkinId);setExpressionMode(savedExpressionMode==='motion'?'motion':'manual',{remember:false});
+// Theme props share the original character appearance; legacy customization
+// preferences must not silently change a pet that has no appearance controls.
+clothing.select('plain');skins.select('chill');skinGradient.setEnabled(true);
 const download=document.querySelector('.download');
 download.textContent='下载当前皮肤模型 ↗';download.title='导出当前表情、衣服与姿态；主题装饰和背景漫画效果不包含在 GLB 中';
 download.addEventListener('click',async event=>{
@@ -155,7 +103,7 @@ async function selectState(id){
     document.querySelector('.download').href='./'+states[id].file;
     play.disabled=false;speedInput.disabled=false;
     document.querySelector('#loading')?.remove();
-    window.dancer={scene:character,simulation,state:id,skins,selectSkin,clothing,selectOutfit,comic,skinGradient,motionExpressions,setExpressionMode,themeSkins,selectTheme:themePicker.select};
+    window.dancer={scene:character,simulation,state:id,skins,clothing,comic,skinGradient,themeSkins,selectTheme:themePicker.select};
   }catch(error){
     document.querySelector('#error').textContent='模型加载失败，请再次点击状态按钮重试。';
     description.textContent='切换失败，请重试。';console.error(error);
@@ -187,8 +135,8 @@ haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositi
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
-  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
-  window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='theme')themePicker.select(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.configure({scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
+  window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='theme')themePicker.select(value);if(type==='pause')play.click();});
   window.desktopPet.onAction(({type,value})=>{
     if(type==='prop-nudge')themeSkins.nudge();
     if(type!=='size'||!petSizes.includes(value))return;
@@ -267,7 +215,6 @@ let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
   if(current&&playing)simulation.update(dt*speed);
-  motionExpressions.update(playing?dt*speed:0,simulation);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);
   focusManga.update(playing?dt*speed:0,simulation);

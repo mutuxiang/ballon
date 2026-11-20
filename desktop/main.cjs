@@ -6,7 +6,7 @@ let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
 const petSizes=[.5,.75,1,1.25,1.5];
 let petScale=1;
-let win,options={skins:[],outfits:[]},drag=null;
+let win,options={themes:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
@@ -61,11 +61,12 @@ app.whenReady().then(()=>{
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');if(!active&&impactWindow&&!impactWindow.isDestroyed())impactWindow.close();});
   uIOhook.start();
-  ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
+  let contextMenu=null;
+  ipcMain.on('pet:menu',()=>{
+    win.focus();
+    contextMenu=Menu.buildFromTemplate([
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
-    {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
-    {label:'衣服',submenu:options.outfits.map(s=>({label:s.name,click:()=>send('outfit',s.id)}))},
     {label:'主题皮肤',submenu:(options.themes||[]).map(s=>({label:s.name,click:()=>send('theme',s.id)}))},
     {label:'鱼缸 / 咖啡杯碰撞演示',click:()=>send('prop-nudge')},
     {label:'桌宠大小',submenu:petSizes.map(scale=>({
@@ -75,7 +76,9 @@ app.whenReady().then(()=>{
     {label:'暂停 / 继续',click:()=>send('pause')},
     {label:'始终置顶',type:'checkbox',checked:win.isAlwaysOnTop(),click:item=>win.setAlwaysOnTop(item.checked)},
     {type:'separator'},{label:'退出桌宠',click:()=>app.quit()}
-  ]).popup({window:win}));
+    ]);
+    contextMenu.popup({window:win});
+  });
   ipcMain.on('pet:drag',(_e,phase)=>{
     if(phase==='start')drag={cursor:screen.getCursorScreenPoint(),bounds:win.getBounds()};
     else if(phase==='move'&&drag){const p=screen.getCursorScreenPoint();win.setPosition(drag.bounds.x+p.x-drag.cursor.x,drag.bounds.y+p.y-drag.cursor.y);}
