@@ -28,7 +28,7 @@ const PARTS={
     {cell:15,size:1.55,relative:'kettle',uv:[.5,1],pivot:[.5,.55],order:2,depth:-.01},
     {cell:6,size:2,position:[2.05,1,0],ground:.02},
     {cell:7,size:1.35,position:[1.9,4.9,-.25],float:.1},
-    {cell:0,atlas:'pillow',key:'neck-pillow',size:1.7,anchor:'body',position:[0,3.87,0],wear:'pillow',pivot:[.5,.58]},
+    {cell:0,atlas:'pillow',key:'neck-pillow',size:2.05,anchor:'body',position:[0,4.08,0],wear:'pillow',pivot:[.5,.32]},
     {cell:0,atlas:'drink',key:'hand-drink',size:1,anchor:'hand',position:[0,0,.32],flipX:true,pivot:[.17,.65]}
   ],
   fresh:[
@@ -56,7 +56,7 @@ const PARTS={
   ]
 };
 
-const ATLASES={base:{url:THEME_ATLAS,columns:4,rows:4},wind:{url:WIND_ATLAS,columns:3,rows:3},pillow:{url:'./relax-neck-pillow-v1.png',columns:1,rows:1},drink:{url:'./relax-hand-drink-v1.png',columns:1,rows:1}};
+const ATLASES={base:{url:THEME_ATLAS,columns:4,rows:4},wind:{url:WIND_ATLAS,columns:3,rows:3},pillow:{url:'./relax-neck-pillow-v2.png',columns:1,rows:1},drink:{url:'./relax-hand-drink-v1.png',columns:1,rows:1}};
 // Near rim measured in the generated cell's visible bounds (top-down UV).
 // Its elliptical edge divides rear lip/liquid from the foreground vessel wall.
 export const CONTAINER_RIMS={bowl:[.5,.085,.34,.075],cup:[.40,.13,.38,.14]};
@@ -92,7 +92,7 @@ function partitionContainer(material,kind,layer){
 function partitionWearable(material,kind,layer){
   material.onBeforeCompile=shader=>{
     shader.vertexShader='varying vec2 vWearUv;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvWearUv=uv;');
-    const edge=kind==='scarf'?'v>.28+.16*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.46,2.)))':kind==='bag'?'v>.45||vWearUv.x>.8':'v>.48';
+    const edge=kind==='scarf'?'v>.28+.16*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.46,2.)))':kind==='bag'?'v>.45||vWearUv.x>.8':'v>.29+.12*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.4,2.)))';
     shader.fragmentShader='varying vec2 vWearUv;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>\nfloat v=1.-vWearUv.y;bool front=${edge};if(front!=${layer==='front'?'true':'false'})discard;`);
   };
   material.customProgramCacheKey=()=>`wear-${kind}-${layer}`;
