@@ -19,6 +19,12 @@ import './skins.css';
 
 const stage=document.querySelector('#stage');
 const petMode=new URLSearchParams(location.search).has('pet');
+const petSizes=[.5,.75,1,1.25,1.5];
+let petScale=1;
+if(petMode)try{
+  const savedScale=Number(localStorage.getItem('air-worker-pet-size'));
+  if(petSizes.includes(savedScale))petScale=savedScale;
+}catch{}
 if(petMode){document.documentElement.classList.add('desktop-pet');const style=document.createElement('style');style.textContent='html.desktop-pet,html.desktop-pet body{background:transparent!important;overflow:hidden} .desktop-pet main{min-height:0;height:100vh} .desktop-pet header,.desktop-pet .intro,.desktop-pet .hint,.desktop-pet .air-states,.desktop-pet .controls,.desktop-pet #progress{display:none!important}';document.head.append(style);}
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#edf0eb');
@@ -161,7 +167,16 @@ for(const b of buttons)b.onclick=()=>selectState(b.dataset.air);
 play.onclick=()=>{playing=!playing;play.textContent=playing?'暂停动画':'继续播放';play.setAttribute('aria-pressed',String(!playing));};
 speedInput.oninput=e=>{speed=+e.target.value;document.querySelector('#speedVal').textContent=speed.toFixed(1)+'×';};
 document.querySelector('#reset').onclick=reset;
-function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=Math.max(7.2,14.8*innerHeight/innerWidth);camera.left=-h*innerWidth/innerHeight/2;camera.right=-camera.left;camera.top=h/2;camera.bottom=-h/2;}else camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function resize(){
+  renderer.setSize(innerWidth,innerHeight);
+  if(petMode){
+    // Only the explicit size setting changes the established 50 pixels per world unit.
+    camera.left=-innerWidth/(100*petScale);camera.right=-camera.left;
+    camera.top=innerHeight/(100*petScale);camera.bottom=-camera.top;
+    camera.zoom=1;
+  }else camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
 addEventListener('resize',resize);resize();
 selectState('high');
 const mangaMotion=createMangaMotion(camera);
@@ -171,8 +186,14 @@ haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositi
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
-  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),themes:THEMES.map(s=>({id:s.id,name:s.name}))});
+  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='theme')themePicker.select(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.onAction(({type,value})=>{
+    if(type!=='size'||!petSizes.includes(value))return;
+    petScale=value;
+    try{localStorage.setItem('air-worker-pet-size',String(value));}catch{}
+    resize();
+  });
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   const canvas=renderer.domElement;
   const body=simulation.nodes.slice(3);
