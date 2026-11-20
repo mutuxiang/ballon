@@ -66,3 +66,19 @@ test('container layers bracket the character while staying aligned in perspectiv
     assert.ok(Math.abs(edgeA.x-edgeB.x)<1e-10,'front and rear artwork must not separate when viewed in perspective');
   }
 });
+
+test('wearable layers share their attachment pivot and bag follows the forearm',()=>{
+  const character=createDancer({rest:true,separateFace:true}).group,scene=new THREE.Scene();scene.add(character);
+  const camera=new THREE.PerspectiveCamera(37,1,.1,100);camera.position.set(2,4,14);camera.lookAt(0,3,0);camera.updateMatrixWorld();
+  const simulation=new AirPhysics(character,{seed:23}),themes=createThemeSkins(scene,character,camera,{loadTexture:()=>new THREE.Texture()});
+  themes.select('wind');themes.update(0,simulation);
+  for(const cell of [3,5]){
+    const a=scene.getObjectByName(`Theme_cell_wind_${cell}_rear`),b=scene.getObjectByName(`Theme_cell_wind_${cell}_front`);
+    const pa=a.position.clone().project(camera),pb=b.position.clone().project(camera);
+    assert.ok(Math.hypot(pa.x-pb.x,pa.y-pb.y)<1e-10);assert.deepEqual(a.center,b.center);
+  }
+  const bag=scene.getObjectByName('Theme_cell_wind_5_front'),before=bag.position.clone();
+  simulation.arms[0].nodes[3].p.y+=.5;themes.update(0,simulation);assert.ok(bag.position.distanceTo(before)>.4);
+  themes.select('fishing');assert.equal(scene.getObjectByName('Theme_fishing').getObjectByName('Theme_cell_3'),undefined);
+  themes.dispose();
+});

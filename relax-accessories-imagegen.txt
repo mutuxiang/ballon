@@ -1,0 +1,18 @@
+Built-in image_gen; transparent PNG outputs, no CLI/API fallback.
+Style reference: public/wind-skin-atlas-v1.png (existing project artwork).
+
+Final assets:
+public/relax-neck-pillow-v1.png
+public/relax-hand-drink-v1.png
+Source generation: exec-d0ffa1a7-1d19-4ecd-bec0-081139c7433a.png
+Final drink alpha refinement: exec-ad70b86c-f175-42f5-9749-6e6ed1539cce.png
+Originals retained in C:/Users/alw/.codex/generated_images/01a1f3dd-cdad-7531-b338-4d541340c15e/.
+
+Prompt 1:
+Use case: illustration-story. Asset type: single transparent sprite for the existing illustrated Air Worker desktop pet. Generate ONLY one pale powder-blue soft U-shaped travel neck pillow, front view slightly from above, broad curved padded band at the back and two short plump ends hanging down at left/right, central neck opening genuinely transparent, no person. Hand-drawn thick charcoal outline, flat pastel color with subtle paper grain matching the provided accessory sheet, no 3D rendering or lighting gradients. The U opening faces down/front, neck opening is about 40 percent of total pillow width. Centered isolated object with 12% transparent padding. No text, floor, shadow, extra objects. Reference image is style guidance only, do not reproduce its grid or elements.
+
+Prompt 2:
+Use case: illustration-story. Asset type: single transparent sprite, accessory held by an illustrated office balloon character. One small warm cream ceramic mug with a pale muted green broad band, handle on right, warm tea visible in a narrow oval opening, two short delicate cream steam curls above. Straight-on front view, almost no perspective. Match the reference image's thick imperfect charcoal ink outline, flat pastel paper-grain fills, cozy hand-drawn illustration. Center isolated with transparent background, generous clear padding. No person, hand, saucer, shadows, text, logo, grid, or additional objects. Reference image is style guidance only.
+
+Prompt 3:
+Precise-object-edit. Remove ONLY the blurred brown halo / glow / shadow surrounding this cup and steam. Outside the ink contours, including the handle hole and gaps between steam, must be genuinely transparent with crisp alpha edges. Keep the cream-and-green mug, orange drink, charcoal outline and subtle paper grain exactly. Do not add anything; no shadow, glow, backdrop, vignette or person. This is a small game sprite composited on arbitrary backgrounds.

@@ -66,3 +66,17 @@ test('contacts are fixed-step and independent of display refresh rate',()=>{
   for(let i=0;i<120;i++)a.sim.update(1/60);for(let i=0;i<240;i++)b.sim.update(1/120);
   a.sim.nodes.forEach((n,i)=>assert.ok(n.p.distanceTo(b.sim.nodes[i].p)<1e-9));
 });
+
+test('repeated rim contacts do not teleport sections or keep a deflated body jittering',()=>{
+  for(const kind of ['bowl','cup']){
+    const {sim,environment}=setup(kind,true);let peak=0,rest=0;
+    for(let i=0;i<3000;i++){
+      if(i===180)sim.setState('none');if(i===1800)sim.setState('high');
+      if(i>1900&&i%100===0)environment.nudge(sim,i%200?-1:1);
+      const previous=sim.nodes.map(n=>n.p.clone());sim.step(1/120);
+      sim.nodes.slice(2).forEach((n,j)=>{const d=n.p.distanceTo(previous[j+2]);if(i>5)peak=Math.max(peak,d);if(i>1400&&i<1800)rest=Math.max(rest,d);});
+    }
+    assert.ok(peak<.06,`${kind}: a contact moved a section ${peak} in one step`);
+    assert.ok(rest<.006,`${kind}: resting sections still jitter by ${rest}`);
+  }
+});

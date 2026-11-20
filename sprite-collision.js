@@ -115,36 +115,72 @@ export class SpriteProjection {
 }
 
 export class SpriteVesselPhysics {
-  constructor(character,camera,getContainer){this.character=character;this.camera=camera;this.getContainer=getContainer;this.previous=new WeakMap();this.contacts=0;this.active=false;this.needsSeat=true;}
-  reset(){this.previous=new WeakMap();this.contacts=0;this.needsSeat=true;}
-  step(simulation){
-    const container=this.getContainer();if(!container)return;
-    const {center,collider}=container,map=new SpriteProjection(this.character,this.camera,center);if(map.center.z>=-.1)return;
-    const nodes=[...simulation.nodes.slice(2).map(n=>({n,r:simulation.bodyRadius(n)})),...simulation.arms.flatMap(arm=>arm.nodes.slice(1).map(n=>({n,r:.12+.12*n.pressure})))];
-    const accepted=new Map();
-    for(const {n,r} of nodes){
-      if(this.needsSeat){const p=map.project(n.p),seated=collider.seat(p,r*map.scale*p.factor);const correction=map.unproject(seated,p.z).sub(n.p);n.p.add(correction);n.old.add(correction);}
-      accepted.set(n,(this.previous.get(n)||n.p).clone());
+  constructor(character,camera,getContainer){this.character=character;this.camera=camera;this.getContainer=getContainer;this.contacts=0;this.needsSeat=true;this.lastKick=-Infinity;this.frame=null;}
+  reset(){this.contacts=0;this.needsSeat=true;this.lastKick=-Infinity;this.frame=null;}
+  radius(sim,n,arm=false){return arm?.16+.17*n.pressure:sim.bodyRadius(n)+.08;}
+  nudge(sim,direction){
+    const container=this.getContainer();if(!container||sim.time-this.lastKick<.35)return false;
+    this.lastKick=sim.time;const map=new SpriteProjection(this.character,this.camera,container.center);
+    sim.nodes.slice(3).forEach((n,i)=>{const p=map.project(n.p),old=map.project(n.old);const v=T.MathUtils.clamp(p.x-old.x+direction*.012*(i+1)/22,-.024,.024);old.x=p.x-v;n.old.copy(map.unproject(old,old.z));});return true;
+  }
+  beginStep(sim,h){
+    const container=this.getContainer();this.frame=null;if(!container)return;
+    const map=new SpriteProjection(this.character,this.camera,container.center);if(map.center.z>=-.1)return;
+    const records=new Map(),collider=container.collider;
+    const add=(n,arm)=>{
+      const radius=this.radius(sim,n,arm);
+      if(this.needsSeat){const p=map.project(n.p),q=collider.seat(p,radius*map.scale*p.factor);n.p.copy(map.unproject(q,p.z));n.old.copy(n.p);}
+      records.set(n,{start:n.p.clone(),accepted:n.p.clone(),normal:new T.Vector2(),contact:false,arm});
+    };
+    sim.nodes.slice(2).forEach(n=>add(n,false));sim.arms.forEach(a=>a.nodes.slice(1).forEach(n=>add(n,true)));
+    this.frame={map,collider,records,h,initial:this.needsSeat};this.needsSeat=false;
+  }
+  solveNodes(sim,nodes){
+    if(!this.frame)return;const {map,collider,records}=this.frame;
+    for(const n of nodes){
+      const record=records.get(n);if(!record)continue;
+      // Shallow depth prevents a fold disappearing behind the illustration
+      // and then reappearing through its wall. Other themes keep full depth.
+      n.p.z=T.MathUtils.clamp(n.p.z,-.4,.4);
+      const from=map.project(record.accepted),to=map.project(n.p),r=this.radius(sim,n,record.arm)*map.scale*to.factor;
+      const result=collider.move(from,to,r);
+      if(result.hit){n.p.copy(map.unproject(result,to.z));record.normal.set(result.nx,result.ny);record.contact=true;this.contacts++;}
+      record.accepted.copy(n.p);
     }
-    this.needsSeat=false;
-    for(let pass=0;pass<8;pass++){
-      for(let i=2;i<simulation.nodes.length;i++)simulation.solveDistance(simulation.nodes[i-1],simulation.nodes[i],4.9/24,1,i===2);
-      for(const arm of simulation.arms){
-        arm.nodes[0].p.copy(simulation.bodyPosition(arm.sign*.5,3.677,0));
-        for(let i=1;i<arm.nodes.length;i++)simulation.solveDistance(arm.nodes[i-1],arm.nodes[i],1.04/6,1,i===1);
-      }
-      for(const {n,r} of nodes){
-        const from=map.project(accepted.get(n)),to=map.project(n.p),radius=r*map.scale*to.factor;
-        const result=collider.move(from,to,radius);
-        if(result.hit){
-          const old=map.project(n.old),vx=to.x-old.x,vy=to.y-old.y,into=Math.min(0,vx*result.nx+vy*result.ny);
-          n.p.copy(map.unproject(result,to.z));
-          n.old.copy(map.unproject({x:result.x-(vx-into*result.nx*1.04)*.97,y:result.y-(vy-into*result.ny*1.04)*.97},old.z));
-          this.contacts++;
-        }
-        accepted.get(n).copy(n.p);
+  }
+  solveBody(sim){this.solveNodes(sim,sim.nodes.slice(2));}
+  solveArm(sim,arm){this.solveNodes(sim,arm.nodes.slice(1));}
+  step(sim){
+    if(!this.frame)return;
+    // Contacts participate in the rod iterations, rather than fighting an
+    // independent solver after the character has already moved.
+    for(let pass=0;pass<6;pass++){
+      for(let i=2;i<25;i++)sim.solveDistance(sim.nodes[i-1],sim.nodes[i],4.9/24,1,i===2);
+      for(let i=24;i>2;i--)sim.solveDistance(sim.nodes[i-1],sim.nodes[i],4.9/24,1);
+      this.solveBody(sim);
+      for(const arm of sim.arms){
+        arm.nodes[0].p.copy(sim.bodyPosition(arm.sign*.5,3.677,0));
+        for(let i=1;i<7;i++)sim.solveDistance(arm.nodes[i-1],arm.nodes[i],1.04/6,1,i===1);
+        this.solveArm(sim,arm);
       }
     }
-    for(const {n} of nodes)this.previous.set(n,n.p.clone());
+    const {map,records,initial,collider}=this.frame;
+    for(const [n,record] of records){
+      // Bound visible positional correction as well as momentum; a constraint
+      // projection must not teleport a section even if its next velocity is zero.
+      if(!initial){
+        const start=map.project(record.start),target=map.project(n.p),delta=new T.Vector2(target.x-start.x,target.y-start.y).clampLength(0,.03);
+        const limited=collider.move(start,{x:start.x+delta.x,y:start.y+delta.y},this.radius(sim,n,record.arm)*map.scale*target.factor);
+        n.p.copy(map.unproject(limited,start.z+T.MathUtils.clamp(target.z-start.z,-.012,.012)));
+        if(limited.hit){record.contact=true;record.normal.set(limited.nx,limited.ny);}
+      }
+      // Reconstruct velocity ONCE. Rewriting Verlet history per contact used
+      // to inject energy at corners and turn constraint corrections into kicks.
+      const p=map.project(n.p),start=map.project(record.start),v=new T.Vector2(p.x-start.x,p.y-start.y);
+      if(record.contact){const into=Math.min(0,v.dot(record.normal));v.addScaledVector(record.normal,-into);v.multiplyScalar(.85);}
+      v.clampLength(0,initial?0:.035);
+      const depthVelocity=T.MathUtils.clamp(p.z-start.z,-.01,.01)*.92;
+      n.old.copy(map.unproject({x:p.x-v.x,y:p.y-v.y},p.z-depthVelocity));
+    }
   }
 }

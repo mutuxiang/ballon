@@ -19,6 +19,7 @@ export class AirPhysics {
   get canDodge(){return (this.superMode||this.target>0)&&this.nodes[24].pressure>=.25;}
   dodge(direction){
     if(!this.canDodge||this.dodgeMotion)return false;
+    if(this.environment?.nudge)return this.environment.nudge(this,direction);
     this.dodgeMotion={
       direction,start:this.time,pose:this.nodes.map(node=>node.p.clone())
     };
@@ -38,6 +39,7 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
+    this.environment?.beginStep(this,h);
     if(this.dodgeMotion&&!this.canDodge)this.dodgeMotion=null;
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;
@@ -82,6 +84,7 @@ export class AirPhysics {
         if((i-j)*4.9/24<min*1.15)continue;
         this.repelSegment(b,a,ns[j+1],min);
       }
+      this.environment?.solveBody(this);
     }
     if(this.dodgeMotion){
       const motion=this.dodgeMotion;
@@ -100,6 +103,7 @@ export class AirPhysics {
       }
       if(elapsed>=DODGE_DURATION)this.dodgeMotion=null;
     }
+    this.environment?.solveBody(this);
     const shoulder=this.sample(SHOULDER_Y);
     for(const arm of this.arms){
       const arr=arm.nodes,anchor=this.bodyPosition(arm.sign*.5,SHOULDER_Y,0);
@@ -124,6 +128,7 @@ export class AirPhysics {
           }
           n.p.y=Math.max(r,n.p.y);
         }
+        this.environment?.solveArm(this,arm);
       }
     }
     for(let pass=0;pass<3;pass++)for(let i=2;i<7;i++)for(let j=1;j<6;j++){
