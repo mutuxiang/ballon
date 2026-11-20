@@ -4,6 +4,8 @@ const {uIOhook,UiohookKey}=require('uiohook-napi');
 const {spawn}=require('node:child_process');
 let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
+const petSizes=[.5,.75,1,1.25,1.5];
+let petScale=1;
 let win,options={skins:[],outfits:[]},drag=null;
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
@@ -37,8 +39,23 @@ app.whenReady().then(()=>{
     overlay.once('ready-to-show',()=>{if(!overlay.isDestroyed()){overlay.showInactive();overlay.setBounds(display.bounds);}});
     setTimeout(()=>{if(!overlay.isDestroyed())overlay.close();},2200);
   });
-  ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
+  function setPetSize(scale){
+    if(!petSizes.includes(scale))return;
+    petScale=scale;
+    drag=null;
+    const bounds=win.getBounds(),workArea=screen.getDisplayMatching(bounds).workArea;
+    const width=Math.min(Math.round(740*scale),workArea.width);
+    const height=Math.min(Math.round(380*scale),workArea.height);
+    const x=Math.round(Math.max(workArea.x,Math.min(workArea.x+workArea.width-width,bounds.x+(bounds.width-width)/2)));
+    const y=Math.round(Math.max(workArea.y,Math.min(workArea.y+workArea.height-height,bounds.y+bounds.height-height)));
+    send('size',scale);
+    win.setBounds({x,y,width,height});
+  }
+  ipcMain.on('pet:configure',(_e,data)=>{
+    options=data;
+    if(petSizes.includes(data.scale)&&data.scale!==petScale)setPetSize(data.scale);
+  });
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
@@ -49,6 +66,10 @@ app.whenReady().then(()=>{
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
     {label:'衣服',submenu:options.outfits.map(s=>({label:s.name,click:()=>send('outfit',s.id)}))},
+    {label:'桌宠大小',submenu:petSizes.map(scale=>({
+      label:scale===1?'100% · 默认':Math.round(scale*100)+'%',
+      type:'radio',checked:petScale===scale,click:()=>setPetSize(scale)
+    }))},
     {label:'暂停 / 继续',click:()=>send('pause')},
     {label:'始终置顶',type:'checkbox',checked:win.isAlwaysOnTop(),click:item=>win.setAlwaysOnTop(item.checked)},
     {type:'separator'},{label:'退出桌宠',click:()=>app.quit()}
