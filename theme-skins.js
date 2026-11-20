@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {spriteBounds} from './game-art.js';
+import {extractVesselOutline,OutlineCollider,SpriteProjection,SpriteVesselPhysics} from './sprite-collision.js';
 
 export const THEME_ATLAS='./break-skin-atlas-v1.png';
 export const WIND_ATLAS='./wind-skin-atlas-v1.png';
@@ -13,8 +14,8 @@ export const THEMES=[
   {id:'wind',name:'放风',note:'人不能随便走，风可以',row:0,atlas:WIND_ATLAS,columns:3,rows:3}
 ];
 
-// Each entry addresses a generated atlas cell. The original meshes and solver
-// remain untouched; accessories live outside the character's silhouette mask.
+// Original imagegen artwork remains on sprites. Only annotated hollow vessels
+// participate in screen-space contacts; front-wall occlusion is independent.
 const PARTS={
   fishing:[
     {cell:0,size:4.6,position:[0,1.65,0],container:'bowl'},
@@ -93,7 +94,15 @@ export function createThemeSkins(scene,character,camera,{
 }={}){
   const root=new THREE.Group();root.name='Theme_accessories';scene.add(root);
   const groups=new Map(),entries=[],listeners=new Set();
-  let active='none',age=0,disposed=false,status='loading',pending=Object.keys(ATLASES).length,failed=false;
+  let active='none',age=0,disposed=false,status='loading',pending=Object.keys(ATLASES).length,failed=false,simulation=null,kickDirection=1;
+  const collision=new SpriteVesselPhysics(character,camera,container);
+  function container(){
+    const entry=entries.find(e=>e.id===active&&e.part.container&&e.layer==='front');
+    if(!entry?.collider)return null;
+    character.updateWorldMatrix(true,false);
+    return {collider:entry.collider,center:character.localToWorld(new THREE.Vector3(...entry.part.position))};
+  }
+  function connect(){if(simulation)simulation.environment=container()?collision:null;}
   const textures=new Map();
   for(const [key,atlas] of Object.entries(ATLASES)){
     const texture=loadTexture(atlas.url,loaded=>onLoad(loaded,key),()=>{failed=true;status='error';notify();});
@@ -119,7 +128,9 @@ export function createThemeSkins(scene,character,camera,{
       entry.map.needsUpdate=true;
       const factor=size/Math.max(bounds.width,bounds.height);
       entry.size.set(bounds.width*factor,bounds.height*factor);entry.sprite.scale.set(entry.size.x,entry.size.y,1);
+      if(entry.part.container&&entry.layer==='front')entry.collider=new OutlineCollider(extractVesselOutline(pixels,canvas.width,bounds,entry.part.container),entry.size.x,entry.size.y);
     }
+    connect();
     pending--;status=failed?'error':pending===0?'ready':'loading';notify();
   }
   for(const [id,parts] of Object.entries(PARTS)){
@@ -137,6 +148,9 @@ export function createThemeSkins(scene,character,camera,{
       const maskMaterial=new THREE.SpriteMaterial({map,color:0x000000,transparent:true,depthWrite:false,alphaTest:.015});
       maskMaterial.allowOverride=false;
       if(part.container){partitionContainer(material,part.container,layer);partitionContainer(maskMaterial,part.container,layer);}
+      // A screen-space front wall must still cover submerged sections when
+      // depth motion brings them closer to the camera than the billboard plane.
+      if(part.container&&layer==='front'){material.depthTest=false;maskMaterial.depthTest=false;}
       const mask=new THREE.Sprite(maskMaterial);mask.name='Theme_occluder_'+suffix;mask.layers.set(1);mask.renderOrder=sprite.renderOrder;
       sprite.add(mask);group.add(sprite);entries.push({part,sprite,map,mask,id,atlasKey,layer,size:new THREE.Vector2(part.size,part.size)});
     }
@@ -146,14 +160,22 @@ export function createThemeSkins(scene,character,camera,{
   kiteString.name='Theme_kite_string';kiteString.frustumCulled=false;kiteString.renderOrder=5;groups.get('wind').add(kiteString);
   return {
     get active(){return active;},get status(){return status;},
+    get physics(){return collision;},
+    bind(sim){if(simulation?.environment===collision)simulation.environment=null;simulation=sim;connect();},
+    nudge(){
+      const current=container();if(!simulation||!current)return false;
+      const projection=new SpriteProjection(character,camera,current.center);kickDirection*=-1;
+      simulation.nodes.slice(3).forEach((node,i)=>{const old=projection.project(node.old);old.x-=kickDirection*.05*(i+1)/22;node.old.copy(projection.unproject(old,old.z));});return true;
+    },
     subscribe(fn){listeners.add(fn);fn(active,status);return ()=>listeners.delete(fn);},
     select(id){
       if(disposed||!THEMES.some(theme=>theme.id===id))return false;
-      active=id;age=0;for(const [key,group] of groups)group.visible=key===id;
+      if(active!==id)collision.reset();active=id;age=0;for(const [key,group] of groups)group.visible=key===id;connect();
       notify();return true;
     },
-    update(dt,simulation){
+    update(dt,sim){
       if(disposed||active==='none')return;
+      if(simulation!==sim){simulation=sim;connect();}
       age+=Math.max(0,Math.min(dt,.1));character.updateWorldMatrix(true,false);camera.updateWorldMatrix(true,false);
       towardCamera.set(0,0,1).applyQuaternion(camera.quaternion);
       for(const {part,sprite,mask,id,layer,size} of entries){
@@ -189,6 +211,7 @@ export function createThemeSkins(scene,character,camera,{
     },
     dispose(){
       if(disposed)return;disposed=true;root.removeFromParent();
+      if(simulation?.environment===collision)simulation.environment=null;
       entries.forEach(({sprite,map,mask})=>{map.dispose();sprite.material.dispose();mask.material.dispose();});textures.forEach(texture=>texture.dispose());stringGeometry.dispose();kiteString.material.dispose();listeners.clear();
     }
   };

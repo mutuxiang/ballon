@@ -7,6 +7,7 @@ export function mountThemePicker(parent,themes,{compact=false,onSelect=()=>{}}={
   const heading=document.createElement(compact?'summary':'h2');heading.textContent='主题皮肤';panel.append(heading);
   const grid=document.createElement('div');grid.className='theme-grid';panel.append(grid);
   const note=document.createElement('p');note.className='theme-note';note.setAttribute('role','status');panel.append(note);
+  const nudge=document.createElement('button');nudge.type='button';nudge.className='theme-nudge';nudge.textContent='碰撞演示 · 晃一下';nudge.onclick=()=>themes.nudge();panel.append(nudge);
   for(const theme of THEMES){
     const button=document.createElement('button');button.type='button';button.dataset.theme=theme.id;button.title=theme.note;
     const icon=document.createElement('span');icon.className='theme-thumb';icon.setAttribute('aria-hidden','true');
@@ -22,6 +23,7 @@ export function mountThemePicker(parent,themes,{compact=false,onSelect=()=>{}}={
     return true;
   }
   themes.subscribe((id,status)=>{
+    nudge.hidden=!['fishing','tea'].includes(id);nudge.disabled=status!=='ready';
     grid.querySelectorAll('[data-theme]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.theme===id)));
     note.textContent=status==='error'&&id!=='none'?'装饰素材未能加载，请刷新重试。':status==='loading'&&id!=='none'?'正在准备主题装饰…':THEMES.find(theme=>theme.id===id).note;
     if(compact)heading.textContent='皮肤 · '+THEMES.find(theme=>theme.id===id).name;

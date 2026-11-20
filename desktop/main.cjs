@@ -67,6 +67,7 @@ app.whenReady().then(()=>{
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
     {label:'衣服',submenu:options.outfits.map(s=>({label:s.name,click:()=>send('outfit',s.id)}))},
     {label:'主题皮肤',submenu:(options.themes||[]).map(s=>({label:s.name,click:()=>send('theme',s.id)}))},
+    {label:'鱼缸 / 咖啡杯碰撞演示',click:()=>send('prop-nudge')},
     {label:'桌宠大小',submenu:petSizes.map(scale=>({
       label:scale===1?'100% · 默认':Math.round(scale*100)+'%',
       type:'radio',checked:petScale===scale,click:()=>setPetSize(scale)

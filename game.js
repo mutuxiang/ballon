@@ -30,6 +30,7 @@ let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
 const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+themeSkins.bind(simulation);
 const themePicker=mountThemePicker($('#game'),themeSkins,{compact:true,onSelect:()=>{if(phase==='playing')togglePause();}});
 const canvas=$('#effects'),ctx=canvas.getContext('2d');
 const poseBackdrop=createPoseBackdrop($('#pose-layer'));

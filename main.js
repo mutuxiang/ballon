@@ -66,6 +66,7 @@ const focusManga=createFocusManga(scene,character,camera);
 const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMode?.32:1});
 const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+themeSkins.bind(simulation);
 const themePicker=mountThemePicker(document.querySelector('#air-states'),themeSkins);
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
 outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
@@ -189,6 +190,7 @@ if(petMode&&window.desktopPet){
   window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='theme')themePicker.select(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   window.desktopPet.onAction(({type,value})=>{
+    if(type==='prop-nudge')themeSkins.nudge();
     if(type!=='size'||!petSizes.includes(value))return;
     petScale=value;
     try{localStorage.setItem('air-worker-pet-size',String(value));}catch{}

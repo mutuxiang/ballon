@@ -130,6 +130,7 @@ export class AirPhysics {
       this.repelSegment(this.arms[0].nodes[i],this.arms[1].nodes[j],this.arms[1].nodes[j+1],.28+.2*shoulder.p);
       this.repelSegment(this.arms[1].nodes[i],this.arms[0].nodes[j],this.arms[0].nodes[j+1],.28+.2*shoulder.p);
     }
+    this.environment?.step(this,h);
     if(this.planar)for(const n of [...ns,...this.arms.flatMap(a=>a.nodes)]){n.p.z=0;n.old.z=0;}
   }
   sample(y){const k=clamp((y-.64)/4.9*24,0,24),i=Math.min(23,Math.floor(k)),s=k-i,a=this.nodes[i],b=this.nodes[i+1];
