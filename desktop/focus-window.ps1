@@ -51,7 +51,9 @@ try {
    $targetPid=[uint32]0
    [void][FocusWindow]::GetWindowThreadProcessId($candidate,[ref]$targetPid)
    if($targetPid -eq $PetProcessId){$candidate=$lastExternal}
-   if($candidate -eq [IntPtr]::Zero){continue}
+   if($candidate -eq [IntPtr]::Zero -or -not [FocusWindow]::IsWindow($candidate)){continue}
+   [void][FocusWindow]::GetWindowThreadProcessId($candidate,[ref]$targetPid)
+   if($targetPid -eq $PetProcessId -or $targetPid -eq $PID){continue}
    $target=$candidate
    [void][FocusWindow]::GetWindowRect($target,[ref]$previousRect)
    $wasZoomed=[FocusWindow]::IsZoomed($target)

@@ -15,7 +15,15 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:sample',(_e,point)=>{const b=win.getBounds(),scale=screen.getDisplayMatching(b).scaleFactor;focusHelper?.stdin.write('sample '+Math.round((b.x+point.x)*scale)+' '+Math.round((b.y+point.y)*scale)+'\n');});
 
   const area=screen.getPrimaryDisplay().workArea;
-  win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,maximizable:false,fullscreenable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win.webContents.on('did-finish-load',()=>{
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1,1);
+  });
+  win.webContents.on('before-input-event',(event,input)=>{
+    if((input.control||input.meta)&&['+','-','=','0'].includes(input.key))event.preventDefault();
+  });
+  win.webContents.on('zoom-changed',()=>win.webContents.setZoomFactor(1));
   win.on('closed',()=>focusHelper?.stdin.end('exit\n'));
   win.setMenuBarVisibility(false);win.loadFile(path.join(__dirname,'../dist/index.html'),{query:{pet:'1'}});
   let impactWindow=null;

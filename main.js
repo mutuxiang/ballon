@@ -157,7 +157,16 @@ for(const b of buttons)b.onclick=()=>selectState(b.dataset.air);
 play.onclick=()=>{playing=!playing;play.textContent=playing?'暂停动画':'继续播放';play.setAttribute('aria-pressed',String(!playing));};
 speedInput.oninput=e=>{speed=+e.target.value;document.querySelector('#speedVal').textContent=speed.toFixed(1)+'×';};
 document.querySelector('#reset').onclick=reset;
-function resize(){renderer.setSize(innerWidth,innerHeight);if(petMode){const h=Math.max(7.2,14.8*innerHeight/innerWidth);camera.left=-h*innerWidth/innerHeight/2;camera.right=-camera.left;camera.top=h/2;camera.bottom=-h/2;}else camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function resize(){
+  renderer.setSize(innerWidth,innerHeight);
+  if(petMode){
+    // Keep the established 50 CSS pixels per world unit, even if the viewport changes.
+    camera.left=-innerWidth/100;camera.right=innerWidth/100;
+    camera.top=innerHeight/100;camera.bottom=-innerHeight/100;
+    camera.zoom=1;
+  }else camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
 addEventListener('resize',resize);resize();
 selectState('high');
 const mangaMotion=createMangaMotion(camera);
