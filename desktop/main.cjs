@@ -1,4 +1,8 @@
+const {createTodayPhotoWindow}=require('./today-photo-window.cjs');
+const {attachAppearanceIpc}=require('./today-appearance-ipc.cjs');
 const {app,BrowserWindow,ipcMain,Menu,screen}=require('electron');
+const {APP_ID,APP_ICON}=require('./branding.cjs');
+if(process.platform==='win32')app.setAppUserModelId(APP_ID);
 const path=require('node:path');
 const {uIOhook,UiohookKey}=require('uiohook-napi');
 const {spawn}=require('node:child_process');
@@ -17,7 +21,7 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:sample',(_e,point)=>{const b=win.getBounds(),scale=screen.getDisplayMatching(b).scaleFactor;focusHelper?.stdin.write('sample '+Math.round((b.x+point.x)*scale)+' '+Math.round((b.y+point.y)*scale)+'\n');});
 
   const area=screen.getPrimaryDisplay().workArea;
-  win=new BrowserWindow({width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,maximizable:false,fullscreenable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({icon:APP_ICON,width:740,height:380,x:area.x+area.width-760,y:area.y+area.height-400,transparent:true,frame:false,alwaysOnTop:true,resizable:false,maximizable:false,fullscreenable:false,hasShadow:false,backgroundColor:'#00000000',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.webContents.on('did-finish-load',()=>{
     win.webContents.setZoomFactor(1);
     win.webContents.setVisualZoomLevelLimits(1,1);
@@ -32,7 +36,7 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:burst',(_e,point)=>{
     const petBounds=win.getBounds(),display=screen.getDisplayMatching(petBounds);
     if(impactWindow&&!impactWindow.isDestroyed())impactWindow.close();
-    impactWindow=new BrowserWindow({x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,transparent:true,frame:false,alwaysOnTop:true,focusable:false,skipTaskbar:true,hasShadow:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+    impactWindow=new BrowserWindow({icon:APP_ICON,x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,transparent:true,frame:false,alwaysOnTop:true,focusable:false,skipTaskbar:true,hasShadow:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
     impactWindow.setIgnoreMouseEvents(true);
     const overlay=impactWindow;
     overlay.loadFile(path.join(__dirname,'impact.html'),{query:{x:String(petBounds.x+point.x-display.bounds.x),y:String(petBounds.y+point.y-display.bounds.y)}});
@@ -56,6 +60,13 @@ app.whenReady().then(()=>{
     options=data;
     if(petSizes.includes(data.scale)&&data.scale!==petScale)setPetSize(data.scale);
   });
+  const appearanceRelay=attachAppearanceIpc({ipcMain,window:win});
+  const photoController=createTodayPhotoWindow({
+    BrowserWindow,screen,parent:win,preloadPath:path.join(__dirname,'preload.cjs'),
+    pagePath:path.join(__dirname,'../dist/photo.html'),onApply:appearance=>appearanceRelay.apply(appearance),
+  });
+  ipcMain.handle('pet:today-avatar',(event,appearance)=>photoController.apply(event.sender,appearance));
+  win.on('closed',()=>photoController.close());
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
@@ -65,6 +76,9 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:menu',()=>{
     win.focus();
     contextMenu=Menu.buildFromTemplate([
+    {label:'自定义小人 · 拍照取色',click:()=>setImmediate(()=>photoController.open())},
+    {label:'恢复原始配色',click:()=>appearanceRelay.apply(null).catch(error=>require('electron').dialog.showErrorBox('恢复失败',error.message))},
+    {type:'separator'},
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'主题皮肤',submenu:(options.themes||[]).map(s=>({label:s.name,click:()=>send('theme',s.id)}))},

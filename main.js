@@ -15,6 +15,8 @@ import {createComicHatching} from './comic.js';
 import {createSkinGradient} from './skin-gradient.js';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import './skins.css';
+import {mountTodayAvatar} from './today-avatar.js';
+import {createTodayAppearance,mountStoredAppearance} from './today-appearance.js';
 
 const stage=document.querySelector('#stage');
 const petMode=new URLSearchParams(location.search).has('pet');
@@ -66,9 +68,16 @@ const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMo
 const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
 themeSkins.bind(simulation);
 const themePicker=mountThemePicker(document.querySelector('#air-states'),themeSkins);
-// Theme props share the original character appearance; legacy customization
-// preferences must not silently change a pet that has no appearance controls.
+// Start from the original appearance, then restore today's custom palette.
 clothing.select('plain');skins.select('chill');skinGradient.setEnabled(true);
+const todayAppearance=createTodayAppearance(character,skins,skinGradient);
+const storedAppearance=mountStoredAppearance(todayAppearance);
+function applyTodayAvatar(appearance){return storedAppearance.set(appearance);}
+if(!petMode){
+  const todayAvatar=mountTodayAvatar(document.querySelector('#air-states'),{onApply:applyTodayAvatar});
+  document.querySelector('#air-states').prepend(todayAvatar.entry);
+  if(new URLSearchParams(location.search).has('todayPhoto'))todayAvatar.open();
+}
 const download=document.querySelector('.download');
 download.textContent='下载当前皮肤模型 ↗';download.title='导出当前表情、衣服与姿态；主题装饰和背景漫画效果不包含在 GLB 中';
 download.addEventListener('click',async event=>{
@@ -135,6 +144,11 @@ haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositi
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
+  window.desktopPet.onAction(({type,value})=>{
+    if(type!=='today-appearance')return;
+    try{applyTodayAvatar(value.appearance);window.desktopPet.appearanceApplied(value.id);}
+    catch(error){window.desktopPet.appearanceApplied(value.id,error.message);}
+  });
   window.desktopPet.configure({scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='theme')themePicker.select(value);if(type==='pause')play.click();});
   window.desktopPet.onAction(({type,value})=>{
