@@ -12,6 +12,8 @@ import {createGameExpressions} from './game-expression.js';
 import {applyExerciseMove,updateExerciseTurn} from './game-motion.js';
 import {hazardRotation,loadAtlas} from './game-art.js';
 import {createPoseBackdrop} from './pose-backdrop.js';
+import {createThemeSkins} from './theme-skins.js';
+import {mountThemePicker} from './theme-picker.js';
 import './game.css';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
@@ -27,6 +29,8 @@ const faceController=createGameExpressions();
 let motionSkin='chill',face='',hitFlash=0,hurtFlash=0,burstFlash=0;
 const expressions=createMotionExpressions(id=>{motionSkin=id;});expressions.setEnabled(true,simulation);
 const silhouette=new SilhouetteEffect(renderer,character);
+const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+const themePicker=mountThemePicker($('#game'),themeSkins,{compact:true,onSelect:()=>{if(phase==='playing')togglePause();}});
 const canvas=$('#effects'),ctx=canvas.getContext('2d');
 const poseBackdrop=createPoseBackdrop($('#pose-layer'));
 const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
@@ -170,6 +174,6 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
     const next=faceController.update(dt,{over:phase==='over',burst:burstFlash,hurt:hurtFlash,charge:game.charge,hit:hitFlash,air:game.air,threat,motionSkin});
     if(next!==face){skins.select(next);face=next;}
   }
-  character.visible=game.invulnerable<=0||Math.floor(now/100)%2===0||phase!=='playing';silhouette.render(scene,camera);draw(phase==='paused'?0:dt,points);
+  character.visible=game.invulnerable<=0||Math.floor(now/100)%2===0||phase!=='playing';themeSkins.update(phase==='paused'?0:dt,simulation);silhouette.render(scene,camera);draw(phase==='paused'?0:dt,points);
 }
 requestAnimationFrame(frame);

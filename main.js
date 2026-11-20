@@ -1,5 +1,7 @@
 import {createMangaMotion} from './manga-motion.js';
 import {createFocusManga} from './focus-manga.js';
+import {createThemeSkins,THEMES} from './theme-skins.js';
+import {mountThemePicker} from './theme-picker.js';
 import {mountPedals} from './pedals.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -57,6 +59,8 @@ const clothing=createClothing(character,{onPaletteChange:palette=>{
 const focusManga=createFocusManga(scene,character,camera);
 const effect=new SilhouetteEffect(renderer,character);
 const simulation=new AirPhysics(character,{seed:Date.now()>>>0,depthMotion:petMode?.32:1});
+const themeSkins=createThemeSkins(scene,character,camera,{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+const themePicker=mountThemePicker(document.querySelector('#air-states'),themeSkins);
 const outfitPanel=document.createElement('section');outfitPanel.className='outfit-picker';outfitPanel.setAttribute('aria-label','衣服风格');
 outfitPanel.innerHTML='<div class="skin-heading"><h2>衣服风格</h2><span>独立搭配表情</span></div><div class="outfit-buttons"></div>';
 document.querySelector('#air-states').append(outfitPanel);
@@ -111,7 +115,7 @@ let savedSkin,savedExpressionMode;try{savedSkin=localStorage.getItem('air-worker
 manualSkinId=SKINS.some(s=>s.id===savedSkin)?savedSkin:SKINS[0].id;
 applySkin(manualSkinId);setExpressionMode(savedExpressionMode==='motion'?'motion':'manual',{remember:false});
 const download=document.querySelector('.download');
-download.textContent='下载当前皮肤模型 ↗';download.title='导出当前表情、衣服与姿态；背景漫画线是页面动态效果，不包含在 GLB 中';
+download.textContent='下载当前皮肤模型 ↗';download.title='导出当前表情、衣服与姿态；主题装饰和背景漫画效果不包含在 GLB 中';
 download.addEventListener('click',async event=>{
   event.preventDefault();if(download.getAttribute('aria-busy')==='true')return;
   download.setAttribute('aria-busy','true');download.textContent='正在导出…';
@@ -144,7 +148,7 @@ async function selectState(id){
     document.querySelector('.download').href='./'+states[id].file;
     play.disabled=false;speedInput.disabled=false;
     document.querySelector('#loading')?.remove();
-    window.dancer={scene:character,simulation,state:id,skins,selectSkin,clothing,selectOutfit,comic,skinGradient,motionExpressions,setExpressionMode};
+    window.dancer={scene:character,simulation,state:id,skins,selectSkin,clothing,selectOutfit,comic,skinGradient,motionExpressions,setExpressionMode,themeSkins,selectTheme:themePicker.select};
   }catch(error){
     document.querySelector('#error').textContent='模型加载失败，请再次点击状态按钮重试。';
     description.textContent='切换失败，请重试。';console.error(error);
@@ -167,8 +171,8 @@ haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositi
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
 if(petMode&&window.desktopPet){
-  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name}))});
-  window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
+  window.desktopPet.configure({skins:SKINS.map(s=>({id:s.id,name:s.name})),outfits:OUTFITS.map(s=>({id:s.id,name:s.name})),themes:THEMES.map(s=>({id:s.id,name:s.name}))});
+  window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='skin')selectSkin(value);if(type==='outfit')selectOutfit(value);if(type==='theme')themePicker.select(value);if(type==='motion')setExpressionMode(value?'motion':'manual');if(type==='pause')play.click();});
   renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();window.desktopPet.menu();});
   const canvas=renderer.domElement;
   const body=simulation.nodes.slice(3);
@@ -249,7 +253,7 @@ renderer.setAnimationLoop(()=>{
   simulation.mangaTransition=Math.max(0,(simulation.mangaTransition||0)-(playing?dt*speed:0));
   const head=simulation.nodes[24],moving=head.p.distanceTo(head.old)>.0004,falling=head.p.y-head.old.y<-.0003;
   comic.setEnabled(!simulation.superMode&&simulation.mangaTransition>0&&moving&&falling&&head.p.y>.5);
-  controls.update();comic.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation,focusSprite.material.color.getStyle());focusSprite.scale.setScalar(1+mangaMotion.burst*.28);
+  controls.update();comic.update(playing?dt*speed:0,simulation);themeSkins.update(playing?dt*speed:0,simulation);effect.render(scene,camera);mangaMotion.update(playing?dt*speed:0,simulation,focusSprite.material.color.getStyle());focusSprite.scale.setScalar(1+mangaMotion.burst*.28);
   document.querySelector('#progress').style.width=(simulation.nodes[24].pressure*100)+'%';
 });
 
