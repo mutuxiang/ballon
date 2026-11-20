@@ -1,5 +1,6 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('desktopPet',{
+  applyTodayAvatar:()=>ipcRenderer.send('pet:today-avatar'),
   burst:point=>ipcRenderer.send('pet:burst',point),
   sample:point=>ipcRenderer.send('pet:sample',point),
   focus:active=>ipcRenderer.send('pet:focus',active),

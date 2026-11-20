@@ -15,6 +15,7 @@ import {createPoseBackdrop} from './pose-backdrop.js';
 import {createThemeSkins} from './theme-skins.js';
 import {mountThemePicker} from './theme-picker.js';
 import './game.css';
+import {mountTodayAvatar} from './today-avatar.js';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
@@ -35,6 +36,10 @@ const canvas=$('#effects'),ctx=canvas.getContext('2d');
 const poseBackdrop=createPoseBackdrop($('#pose-layer'));
 const hazardAtlas=loadAtlas('./work-symbols-hatched.png',3,2);
 let phase='ready',w=innerWidth,h=innerHeight,scale=h/800,last=0,particles=[],best=0,sound=false,audio;
+const todayAvatar=mountTodayAvatar($('.tools'),{compact:true,onOpen:()=>{if(phase==='playing')togglePause();},onApply:({skin,outfit})=>{
+  themePicker.select('none');clothing.select(outfit);skins.select(skin);face='';
+}});
+$('.tools').prepend(todayAvatar.entry);
 let mouseSide='left',padConnected=false,hardwareActive=false;
 let judgment='',judgmentTime=0,judgmentQuality='',lastMove='',moveFlash=0;
 const axisLatch={left:null,right:null};const heldKeys=new Set();
@@ -59,6 +64,7 @@ canvas.addEventListener('pointercancel',release);canvas.addEventListener('lostpo
 $('#game').addEventListener('contextmenu',e=>e.preventDefault());
 const keyMoves={KeyW:['up','left'],KeyS:['down','left'],KeyA:['left','left'],KeyD:['right','left'],KeyQ:['rotate','left'],KeyI:['up','right'],KeyK:['down','right'],KeyJ:['left','right'],KeyL:['right','right'],KeyU:['rotate','right']};
 addEventListener('keydown',e=>{
+  if(todayAvatar.isOpen)return;
   if(e.target.matches('input,textarea,select'))return;
   if(e.code==='Space'&&phase!=='playing'){
     if(e.target.matches('button'))return;

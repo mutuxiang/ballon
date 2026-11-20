@@ -142,6 +142,7 @@ export function createSkins(character) {
     textures.forEach((texture,index)=>{drawFace(texture.image.getContext('2d'),SKINS[index],colors);texture.needsUpdate=true;});
   }
   return {
+    dispose(){textures.forEach(texture=>texture.dispose());focusTexture.dispose();},
     get active(){return active;},
     setFocus(value){if(focused===Boolean(value))return;focused=Boolean(value);this.select(active);},
     setPalette(next){

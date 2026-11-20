@@ -31,12 +31,27 @@ app.whenReady().then(()=>{
   });
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
+  let photoWindow=null;
+  function openTodayPhoto(){
+    if(photoWindow&&!photoWindow.isDestroyed()){photoWindow.focus();return;}
+    photoWindow=new BrowserWindow({width:960,height:820,minWidth:520,minHeight:600,title:'今天的我 · 今日形象',backgroundColor:'#fffaf0',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+    photoWindow.setMenuBarVisibility(false);
+    photoWindow.loadFile(path.join(__dirname,'../dist/index.html'),{query:{todayPhoto:'1'}});
+    photoWindow.on('closed',()=>{photoWindow=null;});
+  }
+  ipcMain.on('pet:today-avatar',event=>{
+    if(!photoWindow||event.sender!==photoWindow.webContents)return;
+    send('today-avatar');photoWindow.close();
+  });
+  win.on('closed',()=>{photoWindow?.close();});
   for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');if(!active&&impactWindow&&!impactWindow.isDestroyed())impactWindow.close();});
   uIOhook.start();
   ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
+    {label:'拍下今天的我（演示）',click:openTodayPhoto},
+    {type:'separator'},
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
