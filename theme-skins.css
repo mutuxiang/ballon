@@ -10,4 +10,4 @@
 .theme-picker-compact{position:absolute;z-index:7;left:24px;bottom:22px;margin:0;padding:0;border:1.5px solid #453b32;border-radius:10px;background:#fffaf0;box-shadow:2px 3px 0 #493c2e}
 .theme-picker-compact summary{padding:10px 14px;font-size:12px;cursor:pointer}
 .theme-picker-compact[open]{width:260px;padding:0 12px 12px}.theme-picker-compact[open] summary{padding-left:0}
-@media(max-width:650px){.theme-thumb{width:37px;height:37px}.theme-picker{margin-top:10px;padding-top:10px}.theme-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.theme-grid button{font-size:10px}.theme-picker-compact{left:12px;bottom:12px;margin:0;padding:0}.theme-picker-compact[open]{width:min(320px,calc(100vw - 24px))}}
+@media(max-width:650px){.theme-thumb{width:37px;height:37px}.theme-picker{margin-top:10px;padding-top:10px}.theme-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.theme-grid button{font-size:10px}.theme-picker-compact{left:12px;bottom:12px;margin:0;padding:0}.theme-picker-compact[open]{width:min(320px,calc(100vw - 24px))}}

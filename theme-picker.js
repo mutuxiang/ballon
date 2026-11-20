@@ -10,7 +10,7 @@ export function mountThemePicker(parent,themes,{compact=false,onSelect=()=>{}}={
   for(const theme of THEMES){
     const button=document.createElement('button');button.type='button';button.dataset.theme=theme.id;button.title=theme.note;
     const icon=document.createElement('span');icon.className='theme-thumb';icon.setAttribute('aria-hidden','true');
-    if(theme.row>=0){icon.style.backgroundImage=`url("${THEME_ATLAS}")`;icon.style.backgroundPosition=`0 ${theme.row/3*100}%`;}
+    if(theme.row>=0){icon.style.backgroundImage=`url("${theme.atlas||THEME_ATLAS}")`;icon.style.backgroundSize=`${(theme.columns||4)*100}% ${(theme.rows||4)*100}%`;icon.style.backgroundPosition=`0 ${theme.row/((theme.rows||4)-1)*100}%`;}
     else {icon.classList.add('theme-thumb-none');icon.textContent='○';}
     const label=document.createElement('span');label.textContent=theme.name;button.append(icon,label);grid.append(button);
     button.onclick=()=>{if(select(theme.id)){onSelect();if(compact)panel.open=false;}};
@@ -27,6 +27,8 @@ export function mountThemePicker(parent,themes,{compact=false,onSelect=()=>{}}={
     if(compact)heading.textContent='皮肤 · '+THEMES.find(theme=>theme.id===id).name;
   });
   let saved;try{saved=localStorage.getItem(THEME_STORAGE_KEY);}catch{}
+  const requested=new URLSearchParams(location.search).get('theme');
+  if(THEMES.some(theme=>theme.id===requested))saved=requested;
   select(THEMES.some(theme=>theme.id===saved)?saved:'none');
   // Selecting a skin with Space must not also start or control the game.
   panel.addEventListener('keydown',event=>event.stopPropagation());

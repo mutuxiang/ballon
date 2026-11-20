@@ -1,0 +1,17 @@
+Use case: stylized-concept
+Asset type: transparent production sprite atlas for an existing interactive balloon office worker. The existing 3D character must NOT be generated.
+Input image: visual style and prop-shape reference for theme 放风. Match the reference's hand-drawn charcoal outlines, soft flat cream, ochre yellow, sky blue, peach orange and sage green fills, subtle paper grain INSIDE colored shapes.
+Create one square transparent PNG atlas, 1536x1536, EXACTLY three columns and three rows, nine equally sized square cells, no visible grid or labels. Each prop stays entirely inside its own cell, centered, with at least 10% clear transparent padding, no crossing cell boundaries. Read left-to-right top-to-bottom:
+Row 1:
+1. Tall arched blue window with cream double frame, blue sky, two cream clouds and low sage bushes visible inside. Straight bottom sill. Entire frame complete. No person.
+2. Orange diamond-shaped kite with thin charcoal cross spars, tiny golden tail bob. Slightly tilted right as in reference. No long string (string is attached dynamically in code).
+3. Small golden-orange wooden string reel, cream wound string and short curled loose end, same as reference. No hand.
+Row 2:
+4. A SHORT horizontal softly folded golden yellow scarf collar, rounded ends, dark hand-drawn lower seam and a tiny fold mark. A neck-wrap band only, no trailing tail, no neck or body.
+5. A separate long golden-yellow scarf tail blowing to the LEFT, soft wavy cloth, short fringe at LEFT tip; right end narrow to join the collar. No body or neck.
+6. Cream messenger shoulder bag with curved long arch shoulder strap, small dark buckle and folded flap, charcoal outline, peach seams; isolated complete bag and strap, no person.
+Row 3:
+7. Two isolated cream puffy clouds, one big one small grouped.
+8. Three small sage-green drifting leaves with black central veins, loosely spaced diagonal grouping.
+9. Three elegant charcoal wind curves flowing horizontally with one curl at right end, as reference.
+Constraints: actual alpha transparency outside every prop. No background paper, no white rectangles, no checkerboard, no caption, no Chinese or English text, no watermark, no human, no character anatomy. Preserve the illustrated look of the reference, do not render photorealistic or 3D props. All cells exact equal grid, all nine complete distinct props.
