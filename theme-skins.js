@@ -18,7 +18,7 @@ export const THEMES=[
 // participate in screen-space contacts; front-wall occlusion is independent.
 const PARTS={
   fishing:[
-    {cell:0,size:4.6,position:[0,1.65,0],container:'bowl'},
+    {cell:0,size:4.6,stretch:[1.3,1],position:[0,1.65,0],container:'bowl'},
     {cell:1,size:1.65,anchor:'face',position:[.12,4.75,.77]},
     {cell:2,size:.85,position:[-1.85,4.8,0],float:.12}
   ],
@@ -29,7 +29,7 @@ const PARTS={
     {cell:6,size:2,position:[2.05,1,0],ground:.02},
     {cell:7,size:1.35,position:[1.9,4.9,-.25],float:.1},
     {cell:0,atlas:'pillow',key:'neck-pillow',size:1.7,anchor:'body',position:[0,3.87,0],wear:'pillow',pivot:[.5,.58]},
-    {cell:0,atlas:'drink',key:'hand-drink',size:1,anchor:'hand',position:[0,0,.32],pivot:[.35,.63]}
+    {cell:0,atlas:'drink',key:'hand-drink',size:1,anchor:'hand',position:[0,0,.32],flipX:true,pivot:[.17,.65]}
   ],
   fresh:[
     {cell:8,size:1.8,anchor:'hand',position:[.25,.55,.35],swing:.1},
@@ -147,9 +147,11 @@ export function createThemeSkins(scene,character,camera,{
       if(!bounds){entry.sprite.visible=false;continue;}
       entry.map.repeat.set(bounds.width/canvas.width,bounds.height/canvas.height);
       entry.map.offset.set(bounds.x/canvas.width,1-(bounds.y+bounds.height)/canvas.height);
+      if(entry.part.flipX){entry.map.offset.x+=entry.map.repeat.x;entry.map.repeat.x*=-1;}
       entry.map.needsUpdate=true;
       const factor=size/Math.max(bounds.width,bounds.height);
-      entry.size.set(bounds.width*factor,bounds.height*factor);entry.sprite.scale.set(entry.size.x,entry.size.y,1);
+      const [stretchX,stretchY]=entry.part.stretch||[1,1];
+      entry.size.set(bounds.width*factor*stretchX,bounds.height*factor*stretchY);entry.sprite.scale.set(entry.size.x,entry.size.y,1);
       if(entry.part.container&&entry.layer==='front')entry.collider=new OutlineCollider(extractVesselOutline(pixels,canvas.width,bounds,entry.part.container),entry.size.x,entry.size.y);
     }
     connect();
