@@ -19,7 +19,7 @@ export const THEMES=[
 const PARTS={
   fishing:[
     {cell:0,size:5.4,position:[0,1.75,0],container:'bowl'},
-    {cell:1,size:1.65,anchor:'face',position:[.12,4.75,.77]},
+    {cell:1,size:1.65,anchor:'face',position:[.12,4.75,.77],order:3},
     {cell:2,size:.85,position:[-1.85,4.8,0],float:.12}
   ],
   breathe:[
