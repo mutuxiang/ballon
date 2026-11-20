@@ -115,16 +115,25 @@ export class SpriteProjection {
 }
 
 export class SpriteVesselPhysics {
-  constructor(character,camera,getContainer){this.character=character;this.camera=camera;this.getContainer=getContainer;this.contacts=0;this.needsSeat=true;this.lastKick=-Infinity;this.frame=null;}
-  reset(){this.contacts=0;this.needsSeat=true;this.lastKick=-Infinity;this.frame=null;}
+  constructor(character,camera,getContainer){this.character=character;this.camera=camera;this.getContainer=getContainer;this.reset();}
+  reset(){this.contacts=0;this.needsSeat=true;this.lastKick=-Infinity;this.frame=null;this.sleeping=false;this.emptyTime=0;this.recovering=false;this.powered=null;this.stuckTime=0;}
   radius(sim,n,arm=false){return arm?.16+.17*n.pressure:sim.bodyRadius(n)+.08;}
   nudge(sim,direction){
-    const container=this.getContainer();if(!container||sim.time-this.lastKick<.35)return false;
+    const container=this.getContainer();if(!container||this.sleeping||sim.time-this.lastKick<.35)return false;
     this.lastKick=sim.time;const map=new SpriteProjection(this.character,this.camera,container.center);
     sim.nodes.slice(3).forEach((n,i)=>{const p=map.project(n.p),old=map.project(n.old);const v=T.MathUtils.clamp(p.x-old.x+direction*.012*(i+1)/22,-.024,.024);old.x=p.x-v;n.old.copy(map.unproject(old,old.z));});return true;
   }
   beginStep(sim,h){
     const container=this.getContainer();this.frame=null;if(!container)return;
+    const powered=sim.target>0||sim.superMode;
+    this.stuckTime=powered&&sim.nodes[24].p.y<3&&sim.nodes[0].pressure>.5?this.stuckTime+h:0;
+    if(powered&&(!this.powered||this.needsSeat)&&sim.nodes[24].p.y<4.7)this.recovering=true;
+    if(this.stuckTime>1.5)this.recovering=true;
+    this.powered=powered;
+    if(powered){this.sleeping=false;this.emptyTime=0;}
+    else this.recovering=false;
+    if(this.sleeping)return false;
+    if(this.recovering&&sim.nodes[24].p.y>4.9&&sim.nodes[24].pressure>.65)this.recovering=false;
     const map=new SpriteProjection(this.character,this.camera,container.center);if(map.center.z>=-.1)return;
     const records=new Map(),collider=container.collider;
     const add=(n,arm)=>{
@@ -148,7 +157,16 @@ export class SpriteVesselPhysics {
       record.accepted.copy(n.p);
     }
   }
-  solveBody(sim){this.solveNodes(sim,sim.nodes.slice(2));}
+  solveBody(sim){
+    if(this.frame&&this.recovering){
+      // Inflating a folded tube needs a gentle restoring bias, otherwise wall
+      // friction and kink-reduced pressure can keep it trapped indefinitely.
+      // Every correction is still swept against the vessel, never teleported.
+      const strength=this.frame.h*2*T.MathUtils.smoothstep(sim.nodes[0].pressure,.08,.6);
+      sim.nodes.slice(2).forEach((n,j)=>n.p.lerp(new T.Vector3(0,.64+(j+2)*4.9/24,0),strength));
+    }
+    this.solveNodes(sim,sim.nodes.slice(2));
+  }
   solveArm(sim,arm){this.solveNodes(sim,arm.nodes.slice(1));}
   step(sim){
     if(!this.frame)return;
@@ -164,8 +182,17 @@ export class SpriteVesselPhysics {
         this.solveArm(sim,arm);
       }
     }
-    const {map,records,initial,collider}=this.frame;
+    const {map,records,initial,collider,h}=this.frame;
+    const nodes=[...sim.nodes,...sim.arms.flatMap(a=>a.nodes)];
+    const empty=!this.powered&&nodes.every(n=>n.pressure<.025);
+    const supported=[...records.values()].some(record=>record.contact)||sim.nodes.slice(2).some(n=>n.p.y<=sim.bodyRadius(n)+.02);
+    // Begin damping only once an empty body has found the rim, wall or floor.
+    // Position corrections need damping too: clearing velocity alone leaves
+    // competing rod/contact constraints visibly crawling on every solver step.
+    this.emptyTime=empty&&(supported||this.emptyTime>0)?this.emptyTime+h:0;
+    const settling=1-T.MathUtils.smoothstep(this.emptyTime,.5,3);
     for(const [n,record] of records){
+      if(settling<1)n.p.lerp(record.start,1-settling);
       // Bound visible positional correction as well as momentum; a constraint
       // projection must not teleport a section even if its next velocity is zero.
       if(!initial){
@@ -181,6 +208,10 @@ export class SpriteVesselPhysics {
       v.clampLength(0,initial?0:.035);
       const depthVelocity=T.MathUtils.clamp(p.z-start.z,-.01,.01)*.92;
       n.old.copy(map.unproject({x:p.x-v.x,y:p.y-v.y},p.z-depthVelocity));
+    }
+    if(this.emptyTime>=3){
+      this.sleeping=true;
+      for(const n of nodes){n.old.copy(n.p);n.pressure=0;}
     }
   }
 }

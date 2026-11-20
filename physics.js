@@ -39,7 +39,7 @@ export class AirPhysics {
   }
   step(h){
     this.time+=h;
-    this.environment?.beginStep(this,h);
+    if(this.environment?.beginStep(this,h)===false)return;
     if(this.dodgeMotion&&!this.canDodge)this.dodgeMotion=null;
     this.wind.x+=(this.random()-.5)*.35-this.wind.x*h*.7;
     this.wind.z+=(this.random()-.5)*.22-this.wind.z*h*.7;

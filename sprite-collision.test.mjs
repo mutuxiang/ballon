@@ -39,11 +39,14 @@ test('screen projection agrees with the rendered sprite through orbit, scale and
   }
 });
 
-function setup(kind,perspective=false){
+// Alpha-sampled break-skin-atlas-v1.png bowl, at the current rendered size.
+// The old smaller analytic outline did not reproduce folded-body trapping.
+const BOWL_OUTLINE=[[.17,.105],[.1430811808118081,.195],[.08404059040590406,.286875],[.04714022140221402,.37875],[.028690036900368976,.470625],[.025,.5625],[.03238007380073793,.654375],[.05821033210332105,.74625],[.10618081180811811,.838125],[.20950184501845015,.93],[.5,.955],[.7831180811808118,.93],[.8827490774907749,.838125],[.9344095940959409,.74625],[.956549815498155,.654375],[.967619926199262,.5625],[.963929889298893,.470625],[.9454797047970479,.37875],[.9122693726937269,.286875],[.8532287822878228,.195],[.83,.105]];
+function setup(kind,perspective=false,seed=23){
   const character=new T.Group(),camera=perspective?new T.PerspectiveCamera(37,1.5,.1,100):new T.OrthographicCamera(-7,7,4,-4,.1,100);
-  camera.position.set(perspective?2.4:0,perspective?4.5:3.2,14.3);camera.lookAt(0,2.7,0);camera.updateMatrixWorld();
-  const center=new T.Vector3(kind==='bowl'?0:.4,1.65,0),collider=new OutlineCollider(VESSELS[kind].outline,kind==='bowl'?4.6:4.85,kind==='bowl'?3.84:3.5);
-  const environment=new SpriteVesselPhysics(character,camera,()=>({center,collider})),sim=new AirPhysics(character,{seed:23,depthMotion:.32});sim.environment=environment;
+  camera.position.set(perspective?2.4:0,perspective?4.5:3.2,14.3);camera.lookAt(perspective?.4:0,perspective?2.7:3.2,0);camera.updateMatrixWorld();
+  const center=new T.Vector3(kind==='bowl'?0:.4,kind==='bowl'?1.75:1.65,0),collider=new OutlineCollider(kind==='bowl'?BOWL_OUTLINE:VESSELS[kind].outline,kind==='bowl'?5.4:4.85,kind==='bowl'?4.622878228782288:3.5);
+  const environment=new SpriteVesselPhysics(character,camera,()=>({center,collider})),sim=new AirPhysics(character,{seed,depthMotion:perspective?1:.32});sim.environment=environment;
   return {sim,environment,map:()=>new SpriteProjection(character,camera,center),collider};
 }
 
@@ -58,6 +61,35 @@ test('body and hands stay outside the wall band during deflation, recovery and m
     }
     assert.ok(environment.contacts>0);assert.ok(maxPenetration<.015,`${kind} visible penetration: ${maxPenetration}`);
     assert.ok(sim.nodes.at(-1).p.y>3.5,'reinflation must be able to exit the open top');
+  }
+});
+
+test('actual fishbowl settles completely and wakes smoothly through repeated inflation cycles',()=>{
+  for(const perspective of [false,true])for(const seed of [23,513,9121,2026]){
+    const {sim,environment,map,collider}=setup('bowl',perspective,seed);
+    const all=()=>[...sim.nodes,...sim.arms.flatMap(a=>a.nodes)];
+    for(let i=0;i<240;i++)sim.step(1/120);
+    for(const state of ['high','low']){
+      sim.setState('none');for(let i=0;i<1800;i++)sim.step(1/120);
+      assert.equal(environment.sleeping,true,`seed ${seed}: empty pet must sleep`);
+      assert.ok(sim.nodes[24].p.y<4.5,'sleep must follow collapse or rim support, not freeze an upright pet');
+      const resting=all().map(n=>n.p.clone()),contacts=environment.contacts;
+      for(let i=0;i<240;i++)sim.step(1/120);
+      all().forEach((n,i)=>assert.ok(n.p.distanceTo(resting[i])<1e-12,'body AND arms must stay still'));
+      assert.equal(environment.contacts,contacts,'sleeping contacts must not keep resolving');
+      assert.equal(environment.nudge(sim,1),false,'mouse/demo nudges cannot restart empty-body jitter');
+      sim.setState(state);let recovered=false,maxPenetration=0;
+      for(let i=0;i<1200;i++){
+        const before=sim.nodes.map(n=>n.p.clone());sim.step(1/120);
+        assert.equal(environment.sleeping,false);
+        sim.nodes.slice(2).forEach((n,j)=>assert.ok(n.p.distanceTo(before[j+2])<.06,'wake-up must not snap the body upright'));
+        const projection=map();
+        for(const n of sim.nodes.slice(2)){const p=projection.project(n.p);maxPenetration=Math.max(maxPenetration,sim.bodyRadius(n)*p.factor-collider.distance(p));}
+        if(sim.nodes[24].p.y>4.9)recovered=true;
+      }
+      assert.ok(recovered,`seed ${seed}: ${state} inflation must stand through the opening`);
+      assert.ok(maxPenetration<.015,'recovery must retain vessel contacts');
+    }
   }
 });
 
