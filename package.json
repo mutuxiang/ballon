@@ -1,5 +1,6 @@
 {
   "name": "air-dancer",
+  "productName": "鼓足气",
   "version": "1.0.0",
   "description": "",
   "main": "desktop/main.cjs",

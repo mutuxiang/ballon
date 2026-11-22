@@ -1,9 +1,35 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+
+test('barrage keeps all elements separated in radial lanes instead of converging at the center',()=>{
+  for(const halfWidth of [185,640]){
+    const g=new WorkGame(()=>.5);g.setViewport(halfWidth);g.startBarrage();
+    g.time=g.barrage.endsAt-.05;g.update(0,body);
+    assert.equal(g.items.length,24);
+    for(let i=0;i<g.items.length;i++){
+      const a=g.items[i];assert.ok(Math.hypot(a.x-g.anchor.x,a.y-g.anchor.y)>g.ringRadius+85);
+      for(const b of g.items.slice(i+1))assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>68,'sprites must not bunch together');
+    }
+  }
+});
 import {WorkGame,HIT_WINDOW,PERFECT_WINDOW,BARRAGE_STEPS,BARRAGE_WARNING,BARRAGE_DURATION,BARRAGE_INTERVAL} from './game-core.js';
 const body=[{x:0,y:400,r:27},{x:0,y:650,r:27}];
 function setup(){const g=new WorkGame(()=>.5);g.update(0,body);g.spawnAttack();g.spawnIn=100;g.nextBarrageAt=Infinity;return g;}
 function advance(g,seconds){for(let t=0;t<seconds;t+=.01)g.update(.01,body);}
+
+test('character translation, bending and deflation cannot move ordinary or barrage trajectories',()=>{
+  for(const barrage of [false,true]){
+    const still=setup(),moving=setup();
+    if(barrage){still.startBarrage();moving.startBarrage();still.time=still.barrage.rushAt;moving.time=moving.barrage.rushAt;}
+    const anchor={...still.anchor};
+    for(let frame=0;frame<100;frame++){
+      const shifted=body.map((point,index)=>({...point,x:point.x+Math.sin(frame)*250,y:point.y+frame*2+index*50}));
+      still.update(.02,body);moving.update(.02,shifted);
+      assert.deepEqual(moving.anchor,anchor);
+      assert.deepEqual(moving.items.map(o=>[o.x,o.y,o.angle]),still.items.map(o=>[o.x,o.y,o.angle]));
+    }
+  }
+});
 test('attacks only originate top left and right; exercise phrase includes all five actions',()=>{const g=setup(),edges=new Set(),actions=new Set();g.items=[];for(let i=0;i<30;i++){g.spawnAttack();const o=g.items.at(-1);edges.add(o.edge);actions.add(o.action);assert.ok(o.dy<=.3);assert.ok(o.hitAt>g.time);}assert.deepEqual([...edges].sort(),[0,1,3]);assert.equal(actions.size,5);});
 test('each foot receives attacks from its own half, including overhead approaches',()=>{
   for(const random of [0,.5,1])for(const width of [150,600]){

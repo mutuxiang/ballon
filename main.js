@@ -31,7 +31,7 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color('#edf0eb');
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 if(petMode){scene.background=null;renderer.setClearColor(0,0);}
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio,petMode?1.5:2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.NoToneMapping;
 stage.prepend(renderer.domElement);
@@ -149,7 +149,7 @@ if(petMode&&window.desktopPet){
     try{applyTodayAvatar(value.appearance);window.desktopPet.appearanceApplied(value.id);}
     catch(error){window.desktopPet.appearanceApplied(value.id,error.message);}
   });
-  window.desktopPet.configure({scale:petScale,themes:THEMES.map(s=>({id:s.id,name:s.name}))});
+  themeSkins.subscribe(()=>window.desktopPet.configure({scale:petScale,theme:themeSkins.active,themes:THEMES.map(s=>({id:s.id,name:s.name}))}));
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='theme')themePicker.select(value);if(type==='pause')play.click();});
   window.desktopPet.onAction(({type,value})=>{
     if(type==='prop-nudge')themeSkins.nudge();
@@ -228,6 +228,7 @@ if(petMode&&window.desktopPet){
 let lastInkSample=0;
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.05);
+  if(document.hidden)return;
   if(current&&playing)simulation.update(dt*speed);
   pedals.update(playing?dt*speed:0);
   skinGradient.update(simulation);skins.setFocus(simulation.superMode);

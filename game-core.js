@@ -10,7 +10,7 @@ export class WorkGame {
     this.charge=0;this.lastChargeSide=null;this.lastBeat=-10;this.lastAction=-10;
     this.barrage=null;this.nextBarrageAt=18;
     this.spawnIn=.35;this.attackIndex=0;this.items=[];this.events=[];this.over=false;this.burst=0;
-    this.anchor={x:0,y:520};this.feet={left:false,right:false};
+    this.anchor={x:0,y:520};this.anchorInitialized=false;this.feet={left:false,right:false};
     this.sticks={left:{x:0,y:0,enabled:true},right:{x:0,y:0,enabled:false}};
   }
   get barrageState(){return !this.barrage?'idle':this.time<this.barrage.rushAt?'warning':'active';}
@@ -19,6 +19,9 @@ export class WorkGame {
   get beat(){return Math.max(.9,1.25-(this.wave-1)*.015);}
   get nextNote(){return this.items.filter(o=>!o.safe&&!o.failed&&!o.barrage).sort((a,b)=>a.hitAt-b.hitAt)[0];}
   setViewport(width){if(Number.isFinite(width))this.halfWidth=Math.max(120,width);}
+  initializeAnchor(body){
+    if(!this.anchorInitialized&&body?.length){this.anchor=defenseAnchor(body);this.anchorInitialized=true;}
+  }
   spawnAttack(barrage=false){
     const phrase=['up','right','down','left','rotate','left','up','right','down','rotate'];
     const action=phrase[this.attackIndex%phrase.length],side=this.attackIndex%2?'right':'left';
@@ -31,6 +34,16 @@ export class WorkGame {
     const lead=3.6,speed=Math.max(40,(distance-this.ringRadius)/lead);
     this.items.push({x,y,dx:dx/distance,dy:dy/distance,distance,barrage,speed,hitAt:this.time+lead,action,edge,kind:this.attackIndex%HAZARDS.length,
       side,r:18,angle:Math.atan2(-dy,-dx)-Math.PI/2,spin:0,vx:0,vy:0,safe:false,failed:false,age:0});
+    if(barrage){
+      // Even angular spacing and three radial lanes keep the rush readable.
+      const slot=this.items.length-1,angle=-Math.PI+(slot+.5)*Math.PI/24;
+      const item=this.items.at(-1);
+      item.dx=Math.cos(angle);item.dy=Math.sin(angle);
+      item.barrageRadius=this.ringRadius+90+(slot%3)*85;
+      item.distance=item.barrageRadius+440;
+      item.x=this.anchor.x+item.dx*item.distance;item.y=this.anchor.y+item.dy*item.distance;
+      item.angle=Math.atan2(-item.dy,-item.dx)-Math.PI/2;
+    }
     this.attackIndex++;
     // Rotation gets a whole extra beat before and after it.
     this.spawnIn=this.beat*((action==='rotate'||phrase[this.attackIndex%phrase.length]==='rotate')?2:1);
@@ -89,7 +102,7 @@ export class WorkGame {
     this.events.push({type:'hit',x:o.x,y:o.y});
   }
   update(dt,body){
-    if(this.over)return;dt=Math.max(0,Math.min(dt,.035));this.time+=dt;this.anchor=defenseAnchor(body);
+    if(this.over)return;dt=Math.max(0,Math.min(dt,.035));this.time+=dt;this.initializeAnchor(body);
     this.invulnerable=Math.max(0,this.invulnerable-dt);this.wave=1+Math.floor(this.time/20);this.burst=Math.max(0,this.burst-dt*1.5);
     if(!this.barrage&&this.time>=this.nextBarrageAt)this.startBarrage();
     if(this.barrage){
@@ -101,7 +114,7 @@ export class WorkGame {
       if(o.safe){o.x+=o.vx*dt;o.y+=o.vy*dt;o.angle+=o.spin*dt;continue;}
       if(o.barrage){
         const progress=Math.max(0,Math.min(1,(this.time-this.barrage.rushAt)/BARRAGE_DURATION));
-        const radius=o.distance*(1-progress)+35*progress;
+        const radius=o.distance*(1-progress)+o.barrageRadius*progress;
         o.x=this.anchor.x+o.dx*radius;o.y=this.anchor.y+o.dy*radius;continue;
       }
       // Center of the object reaches the drawn ring exactly at hitAt.
@@ -114,6 +127,6 @@ export class WorkGame {
           if(this.air<=0&&!this.practiceMode){this.over=true;this.release();this.events.push({type:'pop'});break;}}
       }
     }
-    this.items=this.items.filter(o=>!o.removed&&o.age<14&&o.y<1100&&o.y>-450&&Math.abs(o.x)<this.halfWidth+450);
+    this.items=this.items.filter(o=>!o.removed&&o.age<14&&(o.barrage||(o.y<1100&&o.y>-450&&Math.abs(o.x)<this.halfWidth+450)));
   }
 }

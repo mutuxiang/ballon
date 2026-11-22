@@ -25,8 +25,10 @@ export class SilhouetteEffect {
           float center=texture2D(maskMap,vUv).r;
           float expanded=center;
           for(int radius=1;radius<=2;radius++){
-            for(int i=0;i<24;i++){
-              float angle=float(i)*6.28318530718/24.;
+            for(int i=0;i<16;i++){
+              if(radius==1 && i>=8)break;
+              float count=radius==1?8.:16.;
+              float angle=float(i)*6.28318530718/count;
               vec2 offset=vec2(cos(angle),sin(angle))*texel*width*float(radius)*.5;
               expanded=max(expanded,texture2D(maskMap,vUv+offset).r);
             }

@@ -1,7 +1,8 @@
 const {createTodayPhotoWindow}=require('./today-photo-window.cjs');
 const {attachAppearanceIpc}=require('./today-appearance-ipc.cjs');
-const {app,BrowserWindow,ipcMain,Menu,screen}=require('electron');
-const {APP_ID,APP_ICON}=require('./branding.cjs');
+const {app,BrowserWindow,ipcMain,screen}=require('electron');
+const {APP_ID,APP_ICON,APP_NAME}=require('./branding.cjs');
+const existingUserData=app.getPath('userData');app.setName(APP_NAME);app.setPath('userData',existingUserData);
 if(process.platform==='win32')app.setAppUserModelId(APP_ID);
 const path=require('node:path');
 const {uIOhook,UiohookKey}=require('uiohook-napi');
@@ -10,24 +11,30 @@ let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
 const petSizes=[.5,.75,1,1.25,1.5];
 let petScale=1;
-let win,gameWindow=null,options={themes:[]},drag=null;
+let win,gameWindow=null,options={themes:[]},drag=null,quitting=false;
 function openGame(){
   if(gameWindow&&!gameWindow.isDestroyed()){
     if(gameWindow.isMinimized())gameWindow.restore();
     gameWindow.show();gameWindow.focus();return;
   }
   const display=screen.getDisplayMatching(win.getBounds());
-  gameWindow=new BrowserWindow({icon:APP_ICON,x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,fullscreen:true,show:false,backgroundColor:'#f2eee5',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  const area=display.workArea,width=Math.min(1120,area.width),height=Math.min(760,area.height);
+  gameWindow=new BrowserWindow({icon:APP_ICON,x:Math.round(area.x+(area.width-width)/2),y:Math.round(area.y+(area.height-height)/2),width,height,fullscreen:false,fullscreenable:false,show:false,backgroundColor:'#f2eee5',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
   const opened=gameWindow;
   opened.setMenuBarVisibility(false);
-  opened.loadFile(path.join(__dirname,'../dist/play.html'));
-  opened.once('ready-to-show',()=>{if(!opened.isDestroyed()){opened.show();opened.focus();}});
+  opened.loadFile(path.join(__dirname,'../dist/play.html')).catch(error=>{console.error('Game load failed:',error);if(!opened.isDestroyed())opened.close();});
+  opened.once('ready-to-show',()=>{if(!opened.isDestroyed()){
+    win?.webContents.send('pet:action',{type:'pedal-reset'});win?.hide();
+    opened.maximize();opened.show();opened.focus();
+  }});
   opened.on('focus',()=>win?.webContents.send('pet:action',{type:'pedal-reset'}));
-  opened.on('closed',()=>{gameWindow=null;});
+  opened.webContents.on('render-process-gone',()=>{if(!opened.isDestroyed())opened.close();});
+  opened.on('closed',()=>{gameWindow=null;if(!quitting&&win&&!win.isDestroyed())win.show();});
 }
 
 if(!app.requestSingleInstanceLock())app.quit();
-app.on('second-instance',()=>{win?.show();});
+app.on('second-instance',()=>{if(gameWindow&&!gameWindow.isDestroyed())openGame();else win?.show();});
+app.on('before-quit',()=>{quitting=true;});
 app.whenReady().then(()=>{
   focusHelper=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'focus-window.ps1'),'-PetProcessId',String(process.pid)],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   focusHelper.stdin.on('error',e=>console.error('Focus helper input:',e.message));
@@ -45,7 +52,7 @@ app.whenReady().then(()=>{
     if((input.control||input.meta)&&['+','-','=','0'].includes(input.key))event.preventDefault();
   });
   win.webContents.on('zoom-changed',()=>win.webContents.setZoomFactor(1));
-  win.on('closed',()=>focusHelper?.stdin.end('exit\n'));
+  win.on('closed',()=>{if(focusHelper&&!focusHelper.stdin.writableEnded)focusHelper.stdin.end('exit\n');});
   win.setMenuBarVisibility(false);win.loadFile(path.join(__dirname,'../dist/index.html'),{query:{pet:'1'}});
   let impactWindow=null;
   ipcMain.on('pet:burst',(_e,point)=>{
@@ -82,34 +89,26 @@ app.whenReady().then(()=>{
   });
   ipcMain.handle('pet:today-avatar',(event,appearance)=>photoController.apply(event.sender,appearance));
   win.on('closed',()=>photoController.close());
-  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled||gameWindow?.isFocused())return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
+  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled||gameWindow)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');if(!active&&impactWindow&&!impactWindow.isDestroyed())impactWindow.close();});
   uIOhook.start();
-  let contextMenu=null;
-  ipcMain.on('pet:menu',()=>{
-    win.focus();
-    contextMenu=Menu.buildFromTemplate([
-    {label:'打开游戏模式',click:()=>{if(focusActive){endFocus();send('focus-end');}openGame();}},
-    {type:'separator'},
-    {label:'自定义小人 · 拍照取色',click:()=>setImmediate(()=>photoController.open())},
-    {label:'恢复原始配色',click:()=>appearanceRelay.apply(null).catch(error=>require('electron').dialog.showErrorBox('恢复失败',error.message))},
-    {type:'separator'},
-    {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
-    {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
-    {label:'主题皮肤',submenu:(options.themes||[]).map(s=>({label:s.name,click:()=>send('theme',s.id)}))},
-    {label:'鱼缸 / 咖啡杯碰撞演示',click:()=>send('prop-nudge')},
-    {label:'桌宠大小',submenu:petSizes.map(scale=>({
-      label:scale===1?'100% · 默认':Math.round(scale*100)+'%',
-      type:'radio',checked:petScale===scale,click:()=>setPetSize(scale)
-    }))},
-    {label:'暂停 / 继续',click:()=>send('pause')},
-    {label:'始终置顶',type:'checkbox',checked:win.isAlwaysOnTop(),click:item=>win.setAlwaysOnTop(item.checked)},
-    {type:'separator'},{label:'退出桌宠',click:()=>app.quit()}
-    ]);
-    contextMenu.popup({window:win});
+  const menuController=require('./pet-menu-window.cjs').createPetMenuWindow({
+    BrowserWindow,ipcMain,screen,parent:win,
+    getState:()=>({themes:options.themes||[],theme:options.theme||'none',scale:petScale}),
+    onAction:async(action,value)=>{
+      if(action==='exercise'){if(focusActive){endFocus();send('focus-end');}openGame();}
+      else if(action==='custom')photoController.open();
+      else if(action==='reset')await appearanceRelay.apply(null);
+      else if(action==='theme'&&(options.themes||[]).some(theme=>theme.id===value))send('theme',value);
+      else if(action==='size'&&petSizes.includes(value))setPetSize(value);
+      else if(action==='quit')app.quit();
+      else throw new Error('无效的菜单操作');
+    }
   });
+  ipcMain.on('pet:menu',event=>{if(event.sender===win.webContents&&!gameWindow)menuController.open();});
+  win.on('closed',()=>menuController.close());
   ipcMain.on('pet:drag',(_e,phase)=>{
     if(phase==='start')drag={cursor:screen.getCursorScreenPoint(),bounds:win.getBounds()};
     else if(phase==='move'&&drag){const p=screen.getCursorScreenPoint();win.setPosition(drag.bounds.x+p.x-drag.cursor.x,drag.bounds.y+p.y-drag.cursor.y);}
@@ -118,4 +117,4 @@ app.whenReady().then(()=>{
 });
 app.on('window-all-closed',()=>app.quit());
 
-app.on('will-quit',()=>{uIOhook.stop();focusHelper?.stdin.end('exit\n');});
+app.on('will-quit',()=>{uIOhook.stop();if(focusHelper&&!focusHelper.stdin.writableEnded)focusHelper.stdin.end('exit\n');});

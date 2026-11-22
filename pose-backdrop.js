@@ -67,7 +67,7 @@ export function layoutBackdropPose(pose,index,width,height){
   const scale=Math.min(viewHeight*(index?1.35:1.4)/size.y,viewWidth*(narrow?.92:.62)/size.x);
   pose.scale.setScalar(scale);
   pose.rotation.z=(index?10:-9)*Math.PI/180;
-  pose.position.set(viewWidth*(index?.30:-.30),viewHeight*(index?-.10:-.12),0);
+  pose.position.set(viewWidth*(index?.39:-.39),viewHeight*(index?-.23:.02),0);
   pose.updateMatrixWorld(true);
 }
 
