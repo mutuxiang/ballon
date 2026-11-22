@@ -5,6 +5,18 @@ import {createDancer} from './model.mjs';
 import {AirPhysics} from './physics.js';
 import {createThemeSkins,placeContainerLayer} from './theme-skins.js';
 
+test('wind keeps the original kite enlarged and removes leaves and wind strokes',()=>{
+  const character=createDancer({rest:true,separateFace:true}).group,scene=new THREE.Scene();scene.add(character);
+  const camera=new THREE.OrthographicCamera(-8,8,7,-.5,.1,100);camera.position.z=15;camera.updateMatrixWorld();
+  const themes=createThemeSkins(scene,character,camera,{loadTexture:()=>new THREE.Texture()});
+  themes.select('wind');themes.update(0,new AirPhysics(character,{seed:23}));
+  assert.equal(scene.getObjectByName('Theme_cell_wind_7'),undefined);
+  assert.equal(scene.getObjectByName('Theme_cell_wind_8'),undefined);
+  const kite=scene.getObjectByName('Theme_cell_wind_1');
+  assert.equal(kite.scale.y,1.95);assert.ok(scene.getObjectByName('Theme_kite_string'));
+  themes.dispose();
+});
+
 test('themes leave character geometry, physics, expression and outfit untouched and clear cleanly',()=>{
   const character=createDancer({rest:true,separateFace:true}).group;
   const scene=new THREE.Scene();scene.add(character);

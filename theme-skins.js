@@ -45,14 +45,12 @@ const PARTS={
   ],
   wind:[
     {cell:0,size:4.55,position:[1.6,3.15,-1.6]},
-    {cell:1,size:1.6,position:[2.2,5.75,-.2],float:.12},
+    {cell:1,size:1.95,position:[2.65,5.2,-.2],float:.12,trimBottom:.22},
     {cell:2,size:.65,anchor:'hand',position:[0,.06,.35]},
     {cell:3,key:'scarf',size:1.48,anchor:'body',position:[0,4.06,0],wear:'scarf',pivot:[.5,.45]},
     {cell:4,size:1.65,relative:'scarf',uv:[.09,.56],inheritFit:true,pivot:[.96,.5],depth:.3,order:6,swing:.025},
     {cell:5,size:1.65,anchor:'arm',position:[0,0,0],wear:'bag',pivot:[.7,.25],order:5},
-    {cell:6,size:.95,position:[-2.2,4.9,-.5],float:.08},
-    {cell:7,size:1.3,position:[-2.25,2.2,0],float:.15},
-    {cell:8,size:1.35,position:[2.9,3.8,0],float:.1}
+    {cell:6,size:.95,position:[-2.2,4.9,-.5],float:.08}
   ]
 };
 
@@ -143,7 +141,10 @@ export function createThemeSkins(scene,character,camera,{
       if(entry.atlasKey!==atlasKey)continue;
       const {cell,size}=entry.part,col=cell%columns,row=Math.floor(cell/columns);
       const x=Math.floor(col*canvas.width/columns),y=Math.floor(row*canvas.height/rows);
-      const bounds=spriteBounds(pixels,canvas.width,x,y,Math.floor((col+1)*canvas.width/columns)-x,Math.floor((row+1)*canvas.height/rows)-y);
+      // The original orange kite's small tail sits below the pointed body in
+      // its cell. Crop that strip in UV space, preserving the original art.
+      const cellHeight=Math.floor((row+1)*canvas.height/rows)-y;
+      const bounds=spriteBounds(pixels,canvas.width,x,y,Math.floor((col+1)*canvas.width/columns)-x,Math.floor(cellHeight*(1-(entry.part.trimBottom||0))));
       if(!bounds){entry.sprite.visible=false;continue;}
       entry.map.repeat.set(bounds.width/canvas.width,bounds.height/canvas.height);
       entry.map.offset.set(bounds.x/canvas.width,1-(bounds.y+bounds.height)/canvas.height);
@@ -265,7 +266,7 @@ export function createThemeSkins(scene,character,camera,{
       }
       if(active==='wind'){
         const reel=root.getObjectByName('Theme_cell_wind_2'),kite=root.getObjectByName('Theme_cell_wind_1');
-        const from=reel.position.clone(),to=kite.position.clone().add(new THREE.Vector3(0,-.5,0).applyQuaternion(camera.quaternion));
+        const from=reel.position.clone(),to=kite.position.clone().add(new THREE.Vector3(0,kite.scale.y*.055,0).applyQuaternion(camera.quaternion));
         const mid=from.clone().lerp(to,.5).add(new THREE.Vector3(-.32,-.12,.08));
         const curve=new THREE.QuadraticBezierCurve3(from,mid,to),positions=stringGeometry.attributes.position;
         for(let i=0;i<positions.count;i++){const p=curve.getPoint(i/(positions.count-1));positions.setXYZ(i,p.x,p.y,p.z);}positions.needsUpdate=true;

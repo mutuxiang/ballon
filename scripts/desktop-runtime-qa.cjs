@@ -22,6 +22,18 @@ app.whenReady().then(async()=>{
     await sleep(3000);
     const pet=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));
     assert.ok(pet,'pet loaded');
+    if(process.argv.includes('--wind')){
+      await pet.webContents.executeJavaScript("window.dancer.selectTheme('wind');window.dancer.simulation.setState('high')");
+      await sleep(3000);
+      const wind=await pet.webContents.executeJavaScript(`(()=>{
+        const dancer=window.dancer,root=dancer.themeSkins,kite=dancer.scene.parent.getObjectByName('Theme_cell_wind_1');
+        return {status:root.status,height:kite.scale.y,cropBottom:kite.material.map.offset.y,
+          noLeaves:!dancer.scene.parent.getObjectByName('Theme_cell_wind_7'),noWind:!dancer.scene.parent.getObjectByName('Theme_cell_wind_8')};
+      })()`);
+      assert.equal(wind.status,'ready');assert.ok(Math.abs(wind.height-1.95)<1e-6);assert.ok(wind.cropBottom>=.72&&wind.cropBottom<.75);assert.ok(wind.noLeaves&&wind.noWind);
+      fs.writeFileSync(path.join(outputDir,'wind-skin.png'),(await pet.webContents.capturePage()).toPNG());
+      console.log(JSON.stringify(wind));clearTimeout(timeout);app.quit();return;
+    }
     const petTiming=await sample(pet);
     await pet.webContents.executeJavaScript('window.desktopPet.menu()');await sleep(700);
     const menu=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('pet-menu.html'));
