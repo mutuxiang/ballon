@@ -10,7 +10,22 @@ let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
 const petSizes=[.5,.75,1,1.25,1.5];
 let petScale=1;
-let win,options={themes:[]},drag=null;
+let win,gameWindow=null,options={themes:[]},drag=null;
+function openGame(){
+  if(gameWindow&&!gameWindow.isDestroyed()){
+    if(gameWindow.isMinimized())gameWindow.restore();
+    gameWindow.show();gameWindow.focus();return;
+  }
+  const display=screen.getDisplayMatching(win.getBounds());
+  gameWindow=new BrowserWindow({icon:APP_ICON,x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,fullscreen:true,show:false,backgroundColor:'#f2eee5',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  const opened=gameWindow;
+  opened.setMenuBarVisibility(false);
+  opened.loadFile(path.join(__dirname,'../dist/play.html'));
+  opened.once('ready-to-show',()=>{if(!opened.isDestroyed()){opened.show();opened.focus();}});
+  opened.on('focus',()=>win?.webContents.send('pet:action',{type:'pedal-reset'}));
+  opened.on('closed',()=>{gameWindow=null;});
+}
+
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
@@ -67,7 +82,7 @@ app.whenReady().then(()=>{
   });
   ipcMain.handle('pet:today-avatar',(event,appearance)=>photoController.apply(event.sender,appearance));
   win.on('closed',()=>photoController.close());
-  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
+  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled||gameWindow?.isFocused())return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');if(!active&&impactWindow&&!impactWindow.isDestroyed())impactWindow.close();});
@@ -76,6 +91,8 @@ app.whenReady().then(()=>{
   ipcMain.on('pet:menu',()=>{
     win.focus();
     contextMenu=Menu.buildFromTemplate([
+    {label:'打开游戏模式',click:()=>{if(focusActive){endFocus();send('focus-end');}openGame();}},
+    {type:'separator'},
     {label:'自定义小人 · 拍照取色',click:()=>setImmediate(()=>photoController.open())},
     {label:'恢复原始配色',click:()=>appearanceRelay.apply(null).catch(error=>require('electron').dialog.showErrorBox('恢复失败',error.message))},
     {type:'separator'},

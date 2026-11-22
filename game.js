@@ -19,6 +19,7 @@ import {mountTodayAvatar} from './today-avatar.js';
 import {createTodayAppearance,mountStoredAppearance} from './today-appearance.js';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
+const SIDE_CUES={left:{paper:'#e2edf5',ink:'#426b91'},right:{paper:'#ffead5',ink:'#a35b2c'}};
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('#world').append(renderer.domElement);
@@ -143,7 +144,15 @@ function draw(dt,points){
       ctx.beginPath();ctx.moveTo(0,-32);ctx.lineTo(12,-12);ctx.lineTo(32,0);ctx.lineTo(12,12);ctx.lineTo(0,32);ctx.lineTo(-12,12);ctx.lineTo(-32,0);ctx.lineTo(-12,-12);ctx.closePath();ctx.fill();ctx.stroke();
     }
     ctx.restore();
-    if(!o.safe&&!o.barrage){ctx.fillStyle=o.failed?'#c5a092':'#fffaf0';ctx.strokeStyle=o.failed?'#c5a092':'#8d7356';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#44382b';ctx.textAlign='center';ctx.font='bold 23px sans-serif';ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);}
+    if(!o.safe&&!o.barrage){
+      const cue=SIDE_CUES[o.side];
+      ctx.save();ctx.globalAlpha=o.failed?.5:1;
+      ctx.fillStyle=cue.paper;ctx.strokeStyle=cue.ink;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(o.x,o.y-47,18,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle=cue.ink;ctx.textAlign='center';ctx.font='bold 23px sans-serif';
+      ctx.fillText(ACTION_LABELS[o.action],o.x,o.y-39);ctx.font='10px sans-serif';
+      ctx.fillText(o.side==='left'?'左脚':'右脚',o.x,o.y-71);ctx.restore();
+    }
   }
   for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=Math.max(0,p.life/.7);ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*.04,p.y-p.vy*.04);ctx.stroke();}particles=particles.filter(p=>p.life>0);ctx.globalAlpha=1;
   if(game.burst>0){ctx.strokeStyle='#aa783b';ctx.lineWidth=4;ctx.globalAlpha=game.burst;ctx.beginPath();ctx.arc(points[0].x,points[0].y,(1-game.burst)*800+40,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
