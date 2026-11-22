@@ -47,9 +47,9 @@ const PARTS={
     {cell:0,size:4.55,position:[1.6,3.15,-1.6]},
     {cell:1,size:1.6,position:[2.2,5.75,-.2],float:.12},
     {cell:2,size:.65,anchor:'hand',position:[0,.06,.35]},
-    {cell:4,size:1.8,anchor:'body',position:[-.52,3.87,.62],pivot:[1,.5],swing:.025},
-    {cell:3,size:1.4,anchor:'body',position:[0,3.87,0],wear:'scarf',pivot:[.5,.25]},
-    {cell:5,size:1.8,anchor:'arm',position:[0,.13,0],wear:'bag',pivot:[.53,.18]},
+    {cell:3,key:'scarf',size:1.48,anchor:'body',position:[0,4.06,0],wear:'scarf',pivot:[.5,.45]},
+    {cell:4,size:1.65,relative:'scarf',uv:[.09,.56],inheritFit:true,pivot:[.96,.5],depth:.3,order:6,swing:.025},
+    {cell:5,size:1.65,anchor:'arm',position:[0,0,0],wear:'bag',pivot:[.7,.25],order:5},
     {cell:6,size:.95,position:[-2.2,4.9,-.5],float:.08},
     {cell:7,size:1.3,position:[-2.25,2.2,0],float:.15},
     {cell:8,size:1.35,position:[2.9,3.8,0],float:.1}
@@ -92,7 +92,7 @@ function partitionContainer(material,kind,layer){
 function partitionWearable(material,kind,layer){
   material.onBeforeCompile=shader=>{
     shader.vertexShader='varying vec2 vWearUv;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvWearUv=uv;');
-    const edge=kind==='scarf'?'v>.28+.16*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.46,2.)))':kind==='bag'?'v>.45||vWearUv.x>.8':'v>.29+.12*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.4,2.)))';
+    const edge=kind==='scarf'?'v>.28+.16*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.46,2.)))':kind==='bag'?'v>.45||vWearUv.x>.68':'v>.29+.12*sqrt(max(0.,1.-pow((vWearUv.x-.5)/.4,2.)))';
     shader.fragmentShader='varying vec2 vWearUv;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>\nfloat v=1.-vWearUv.y;bool front=${edge};if(front!=${layer==='front'?'true':'false'})discard;`);
   };
   material.customProgramCacheKey=()=>`wear-${kind}-${layer}`;
@@ -177,6 +177,7 @@ export function createThemeSkins(scene,character,camera,{
       // A screen-space front wall must still cover submerged sections when
       // depth motion brings them closer to the camera than the billboard plane.
       if(part.container&&layer==='front'){material.depthTest=false;maskMaterial.depthTest=false;}
+      if((part.wear==='scarf'||part.wear==='bag')&&layer==='front'){material.depthTest=false;maskMaterial.depthTest=false;}
       const mask=new THREE.Sprite(maskMaterial);mask.name='Theme_occluder_'+suffix;mask.layers.set(1);mask.renderOrder=sprite.renderOrder;
       mask.center.copy(sprite.center);
       if(part.relative){material.depthTest=false;maskMaterial.depthTest=false;}
@@ -210,10 +211,16 @@ export function createThemeSkins(scene,character,camera,{
         const {part,sprite,mask,id,layer,size}=entry;
         if(id!==active)continue;
         const [x,y,z]=part.position||[0,0,0];
-        let rotation=0;
+        let rotation=0,fitScale=1;
         if(part.relative){
           const parent=entries.find(e=>e.id===id&&e.part.key===part.relative&&e.layer!=='rear');
-          world.copy(parent.worldCenter).addScaledVector(right,(part.uv[0]-.5)*parent.size.x).addScaledVector(up,(.5-part.uv[1])*parent.size.y);
+          // Attach in the parent's cropped, rotated image coordinates. This
+          // keeps the scarf tail sewn to the collar as it bends and deflates.
+          fitScale=part.inheritFit?parent.fitScale:1;
+          rotation=parent.sprite.material.rotation;
+          const dx=(part.uv[0]-parent.sprite.center.x)*parent.size.x*parent.fitScale;
+          const dy=(1-part.uv[1]-parent.sprite.center.y)*parent.size.y*parent.fitScale;
+          world.copy(parent.worldCenter).addScaledVector(right,dx*Math.cos(rotation)-dy*Math.sin(rotation)).addScaledVector(up,dx*Math.sin(rotation)+dy*Math.cos(rotation));
         }else if(part.anchor==='face'||part.anchor==='body'){
           world.copy(simulation.bodyPosition(x,y,z));above.copy(simulation.bodyPosition(x,y+.2,z));
           character.localToWorld(world);character.localToWorld(above);
@@ -221,7 +228,7 @@ export function createThemeSkins(scene,character,camera,{
           rotation=Math.atan2(-(b.x-a.x)*camera.projectionMatrix.elements[5]/camera.projectionMatrix.elements[0],b.y-a.y);
           world.addScaledVector(towardCamera,.06);
         }else if(part.anchor==='arm'){
-          world.copy(simulation.arms[0].nodes[3].p).add(new THREE.Vector3(x,y,z));character.localToWorld(world);
+          world.copy(simulation.arms[0].nodes[4].p).add(new THREE.Vector3(x,y,z));character.localToWorld(world);
           rotation=THREE.MathUtils.clamp((simulation.arms[0].nodes[5].p.y-simulation.arms[0].nodes[1].p.y)*.12,-.18,.18);
         }else if(part.anchor==='hand'){
           world.copy(simulation.arms.find(arm=>arm.sign===1).nodes.at(-1).p).add(new THREE.Vector3(x,y,z));
@@ -233,12 +240,13 @@ export function createThemeSkins(scene,character,camera,{
         }
         entry.worldCenter.copy(world);
         if(part.container)placeContainerLayer(sprite,world,size,camera,layer==='front'?1.3:-1.3);
-        else if(part.relative)placeContainerLayer(sprite,world,size,camera,part.depth||0);
+        else if(part.relative)placeContainerLayer(sprite,world,size.clone().multiplyScalar(fitScale),camera,part.depth||0);
         else if(part.wear){
           const pressure=simulation.sample(y||3.87).p;
           // A padded neck pillow retains its volume when the wearer deflates.
           // Keep its front lobes beyond the neck even when it folds sideways.
           const scale=part.wear==='bag'?1:part.wear==='pillow'?.82+.18*pressure:.52+.48*pressure;
+          fitScale=scale;
           const depth=part.wear==='bag'?.38:part.wear==='pillow'?.5+.4*pressure:.2+.65*pressure;
           if(part.wear==='pillow'&&layer==='front'){
             // The deflated torso folds across the billboard plane. Its front
@@ -250,7 +258,8 @@ export function createThemeSkins(scene,character,camera,{
           placeContainerLayer(sprite,world,size.clone().multiplyScalar(scale),camera,layer==='front'?depth:-depth);
         }
         else sprite.position.copy(world);
-        if(part.anchor==='body'&&part.swing&&!reducedMotion)rotation+=Math.sin(age*2)*part.swing;
+        entry.fitScale=fitScale;
+        if((part.anchor==='body'||part.inheritFit)&&part.swing&&!reducedMotion)rotation+=Math.sin(age*2)*part.swing;
         sprite.material.rotation=mask.material.rotation=rotation;
         for(const material of [sprite.material,mask.material])if(material.userData.themeShader)material.userData.themeShader.uniforms.themeAge.value=reducedMotion?0:age;
       }

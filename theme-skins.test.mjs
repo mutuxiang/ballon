@@ -72,13 +72,34 @@ test('wearable layers share their attachment pivot and bag follows the forearm',
   const camera=new THREE.PerspectiveCamera(37,1,.1,100);camera.position.set(2,4,14);camera.lookAt(0,3,0);camera.updateMatrixWorld();
   const simulation=new AirPhysics(character,{seed:23}),themes=createThemeSkins(scene,character,camera,{loadTexture:()=>new THREE.Texture()});
   themes.select('wind');themes.update(0,simulation);
-  for(const cell of [3,5]){
+  for(const cell of ['scarf',5]){
     const a=scene.getObjectByName(`Theme_cell_wind_${cell}_rear`),b=scene.getObjectByName(`Theme_cell_wind_${cell}_front`);
     const pa=a.position.clone().project(camera),pb=b.position.clone().project(camera);
     assert.ok(Math.hypot(pa.x-pb.x,pa.y-pb.y)<1e-10);assert.deepEqual(a.center,b.center);
   }
   const bag=scene.getObjectByName('Theme_cell_wind_5_front'),before=bag.position.clone();
-  simulation.arms[0].nodes[3].p.y+=.5;themes.update(0,simulation);assert.ok(bag.position.distanceTo(before)>.4);
+  simulation.arms[0].nodes[4].p.y+=.5;themes.update(0,simulation);assert.ok(bag.position.distanceTo(before)>.4);
   themes.select('fishing');assert.equal(scene.getObjectByName('Theme_fishing').getObjectByName('Theme_cell_3'),undefined);
   themes.dispose();
+});
+
+test('scarf tail stays joined to its collar through bending, deflation and camera changes',()=>{
+  const character=createDancer({rest:true,separateFace:true}).group,scene=new THREE.Scene();scene.add(character);
+  const simulation=new AirPhysics(character,{seed:23});
+  for(const camera of [new THREE.PerspectiveCamera(37,1.4,.1,100),new THREE.OrthographicCamera(-6,6,5,-5,.1,100)]){
+    camera.position.set(2,4,14);camera.lookAt(0,3,0);camera.updateMatrixWorld();
+    const themes=createThemeSkins(scene,character,camera,{loadTexture:()=>new THREE.Texture()});themes.select('wind');
+    for(const pressure of [1,.4,0])for(const lean of [0,.8,-1.2]){
+      for(const [i,node] of simulation.nodes.entries()){node.pressure=pressure;node.p.set(lean*i/24,.64+i*4.9/24,0);}
+      themes.update(.016,simulation);
+      const collar=scene.getObjectByName('Theme_cell_wind_scarf_front'),tail=scene.getObjectByName('Theme_cell_wind_4');
+      const rotation=collar.material.rotation,dx=(.09-collar.center.x)*collar.scale.x,dy=(1-.56-collar.center.y)*collar.scale.y;
+      const seam=collar.position.clone().add(new THREE.Vector3(dx*Math.cos(rotation)-dy*Math.sin(rotation),dx*Math.sin(rotation)+dy*Math.cos(rotation),0).applyQuaternion(camera.quaternion)).project(camera);
+      const anchor=tail.position.clone().project(camera);
+      assert.ok(Math.hypot(seam.x-anchor.x,seam.y-anchor.y)<1e-9,'tail pivot must remain at the same visible stitch point');
+      assert.ok(Math.abs(tail.material.rotation-rotation)<=.025,'tail rotates with the neck, with only a small flutter');
+      assert.equal(collar.material.depthTest,false,'folding must not hide the front collar');
+    }
+    themes.dispose();
+  }
 });
