@@ -1,5 +1,11 @@
 # 鼓足气 · puffo-pump!
 
+## 快捷启动
+
+首次运行 `npm run shortcut`，会在桌面和开始菜单创建「鼓足气」快捷方式，并为桌面快捷方式绑定 **Ctrl + Alt + G**。双击图标、按快捷键或在 Windows 搜索「鼓足气」即可启动；重复启动会唤回当前桌宠或运动窗口。启动不弹出终端，也不重新构建。移动项目目录后重新运行 `npm run shortcut` 更新路径。
+
+首次准备需 `npm ci`、`npm run build`；若 Electron 运行程序未下载，执行 `node node_modules/electron/install.js`。修改源码后运行 `npm run build`。`start-pet.cmd` 和 `start-pet.ps1` 也可直接启动已构建版本。
+
 运动模式固定使用原始小人，不提供换皮肤或拍照自定义入口，也不读取桌宠保存的主题和自定义配色；工具栏仅保留暂停。
 
 运动模式默认最大化到桌面工作区，保留 Windows 任务栏。不会进入桌宠专注模式或改变其他应用窗口。进入游戏后桌宠隐藏并停止后台渲染，关闭游戏窗口后恢复；再次启动程序会回到现有游戏窗口。描边采样已减少，高分屏桌宠渲染倍率上限为 1.5，以降低显卡负担。运行 `node_modules\electron\dist\electron.exe scripts\desktop-runtime-qa.cjs` 可验证真实窗口切换、退出恢复与帧间隔；报告和截图写入工作区 `output/runtime-qa/ballon-after.*`。

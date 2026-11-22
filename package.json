@@ -10,7 +10,8 @@
     "model": "node export.mjs",
     "build": "vite build --base ./",
     "pet": "npm run build && electron .",
-    "pet:start": "electron ."
+    "pet:start": "electron .",
+    "shortcut": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1"
   },
   "keywords": [],
   "author": "",

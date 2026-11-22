@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-call npm run pet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0start-pet.ps1"
