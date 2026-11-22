@@ -4,7 +4,21 @@ const {uIOhook,UiohookKey}=require('uiohook-napi');
 const {spawn}=require('node:child_process');
 let focusHelper=null,focusActive=false;
 let pedalEnabled=true;
-let win,options={skins:[],outfits:[]},drag=null;
+let win,gameWindow=null,options={skins:[],outfits:[]},drag=null;
+function openGame(){
+  if(gameWindow&&!gameWindow.isDestroyed()){
+    if(gameWindow.isMinimized())gameWindow.restore();
+    gameWindow.show();gameWindow.focus();return;
+  }
+  const display=screen.getDisplayMatching(win.getBounds());
+  gameWindow=new BrowserWindow({x:display.bounds.x,y:display.bounds.y,width:display.bounds.width,height:display.bounds.height,fullscreen:true,show:false,backgroundColor:'#f2eee5',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  const opened=gameWindow;
+  opened.setMenuBarVisibility(false);
+  opened.loadFile(path.join(__dirname,'../dist/play.html'));
+  opened.once('ready-to-show',()=>{if(!opened.isDestroyed()){opened.show();opened.focus();}});
+  opened.on('focus',()=>win?.webContents.send('pet:action',{type:'pedal-reset'}));
+  opened.on('closed',()=>{gameWindow=null;});
+}
 if(!app.requestSingleInstanceLock())app.quit();
 app.on('second-instance',()=>{win?.show();});
 app.whenReady().then(()=>{
@@ -31,12 +45,14 @@ app.whenReady().then(()=>{
   });
   ipcMain.on('pet:configure',(_e,data)=>{options=data;});
   const send=(type,value)=>win.webContents.send('pet:action',{type,value});
-  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled)return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
+  for(const [event,down] of [['keydown',true],['keyup',false]])uIOhook.on(event,e=>{if(!pedalEnabled||gameWindow?.isFocused())return;const side=e.keycode===UiohookKey.A?'left':e.keycode===UiohookKey.L?'right':null;if(side)send('pedal',{side,down});});
   uIOhook.on('keydown',e=>{if(e.keycode===UiohookKey.Escape&&focusActive){endFocus();send('focus-end');}});
   function endFocus(){focusHelper?.stdin.write('exit\n');focusActive=false;}
   ipcMain.on('pet:focus',(_e,active)=>{focusActive=active;focusHelper?.stdin.write(active?'enter\n':'exit\n');});
   uIOhook.start();
   ipcMain.on('pet:menu',()=>Menu.buildFromTemplate([
+    {label:'打开游戏模式',click:()=>{if(focusActive){endFocus();send('focus-end');}openGame();}},
+    {type:'separator'},
     {label:'脚蹬控制 A / L',type:'checkbox',checked:pedalEnabled,click:item=>{pedalEnabled=item.checked;send('pedal-reset');}},
     {label:'充气状态',submenu:[['none','没气 · 躺平'],['low','气少 · 摸鱼'],['high','气多 · 营业']].map(([id,label])=>({label,click:()=>send('air',id)}))},
     {label:'表情',submenu:[{label:'随动作切换',click:()=>send('motion',true)},...options.skins.map(s=>({label:s.name,click:()=>send('skin',s.id)}))]},
