@@ -5,7 +5,7 @@
   "description": "",
   "main": "desktop/main.cjs",
   "scripts": {
-    "test": "node normals.test.mjs && node physics.test.mjs && node motion-expressions.test.mjs && node pedals.test.mjs && node charge.test.mjs && node --test game-core.test.mjs game-expression.test.mjs game-motion.test.mjs game-gradient.test.mjs game-art.test.mjs pose-backdrop.test.mjs theme-skins.test.mjs sprite-collision.test.mjs today-camera.test.mjs today-palette.test.mjs desktop/today-photo-window.test.cjs desktop/today-appearance-ipc.test.cjs",
+    "test": "node normals.test.mjs && node physics.test.mjs && node motion-expressions.test.mjs && node pedals.test.mjs && node charge.test.mjs && node --test skin-unlocks.test.mjs game-core.test.mjs game-expression.test.mjs game-motion.test.mjs game-gradient.test.mjs game-art.test.mjs pose-backdrop.test.mjs theme-skins.test.mjs sprite-collision.test.mjs today-camera.test.mjs today-palette.test.mjs desktop/today-photo-window.test.cjs desktop/today-appearance-ipc.test.cjs",
     "dev": "vite --host 127.0.0.1",
     "model": "node export.mjs",
     "build": "vite build --base ./",

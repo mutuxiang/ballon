@@ -24,14 +24,15 @@ export function mountPedals({selectState,simulation,camera}){
   const charge=createCharge(active=>{simulation.superMode=active;window.desktopPet?.focus(active);document.documentElement.classList.toggle('super-mode',active);selectState(active?'high':['none','low','high'][Number(controller.feet.left)+Number(controller.feet.right)]);});
   const controller=createPedals({onState(state,feet){if(!charge.active)selectState(state);simulation.pedalLean=feet.left===feet.right?0:feet.left?-.8:.8;},onBeat({side,down}){
     dispatchEvent(new CustomEvent('air-pedal',{detail:{side,down,feet:{...controller.feet}}}));
-    if(down){charge.beat(side,time);const sign=side==='left'?-1:1;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.007*(i-12)/12;}
+    if(down){if(!controller.taskActive)charge.beat(side,time);const sign=side==='left'?-1:1;for(let i=12;i<25;i++)simulation.nodes[i].old.x-=sign*.007*(i-12)/12;}
   }});
   if(!window.desktopPet){
     const key=(e,down)=>{if(e.target.matches('input,textarea,select'))return;const side={KeyA:'left',KeyL:'right'}[e.code];if(side){e.preventDefault();controller.set(side,down);}};
     addEventListener('keydown',e=>key(e,true));addEventListener('keyup',e=>key(e,false));addEventListener('blur',()=>controller.reset());
   }
   addEventListener('keydown',e=>{if(e.code==='Escape')charge.cancel();});
-  controller.update=dt=>{const head=simulation.nodes[24].p.clone().add(new Vector3(0,.65,0)).project(camera);meter.style.left=Math.max(115,Math.min(innerWidth-115,(head.x+1)*innerWidth/2))+'px';meter.style.top=Math.max(-12,Math.min(innerHeight-74,(1-head.y)*innerHeight/2-37))+'px';time+=dt;charge.update(dt,time);fill.style.width=charge.value*100+'%';meter.setAttribute('aria-valuenow',String(Math.round(charge.value*100)));meter.style.display=charge.value>0&&!charge.active?'block':'none';};
+  controller.update=dt=>{const head=simulation.nodes[24].p.clone().add(new Vector3(0,.65,0)).project(camera);meter.style.left=Math.max(115,Math.min(innerWidth-115,(head.x+1)*innerWidth/2))+'px';meter.style.top=Math.max(-12,Math.min(innerHeight-74,(1-head.y)*innerHeight/2-37))+'px';time+=dt;charge.update(dt,time);fill.style.width=charge.value*100+'%';meter.setAttribute('aria-valuenow',String(Math.round(charge.value*100)));meter.style.display=charge.value>0&&!charge.active&&!controller.taskActive?'block':'none';};
+  controller.setTaskActive=active=>{controller.taskActive=active;if(active){charge.cancel();meter.style.display='none';}};
   controller.cancelSuper=()=>charge.cancel();
   controller.reset();return controller;
 }

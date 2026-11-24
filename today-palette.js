@@ -26,6 +26,16 @@ function fromHsl([h,s,l]){
   return [f(0),f(8),f(4)];
 }
 function tone(rgb,lift){const [h,s,l]=rgbToHsl(rgb);return fromHsl([h,s,lift>=0?l+(1-l)*lift:l*(1+lift)]);}
+export function recognizedColorVariants(value){
+  if(!/^#[\da-f]{6}$/i.test(value))throw new Error('无效的识别颜色');
+  const rgb=[1,3,5].map(i=>parseInt(value.slice(i,i+2),16)),seen=new Set();
+  return [[-.30,'深一些'],[-.18,'稍深'],[-.08,'微深'],[0,'识别原色'],[.10,'微浅'],[.22,'稍浅'],[.36,'浅一些']].flatMap(([lift,name])=>{
+    const color=(lift===0?value:hex(tone(rgb,lift))).toUpperCase();
+    // Retain the original marker even when a near-black shade rounds to it.
+    if(lift!==0&&color===value.toUpperCase())return [];
+    if(seen.has(color))return [];seen.add(color);return [[name,color]];
+  });
+}
 // Keep a real representative pixel from the dominant hue family. Avoid mixing
 // channels from different garments or averaging the jacket with the inner layer.
 export function samplePhotoColors({data,width,height}){

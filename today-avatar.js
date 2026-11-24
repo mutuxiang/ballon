@@ -1,5 +1,6 @@
 import {createCameraSession,cameraErrorMessage} from './today-camera.js';
 import {localDay,samplePhotoColors} from './today-palette.js';
+import {mountColorEditor} from './today-color-editor.js';
 import './today-avatar.css';
 import mirrorHelper from './assets/today-helper-mirror.png';
 import cameraHelper from './assets/today-helper-camera.png';
@@ -25,8 +26,8 @@ export function mountTodayAvatar(parent,{compact=false,onOpen=()=>{},onApply=()=
     </section>
     <section class="today-step-avatar" aria-label="第二步：今天的小人" hidden>
       <div class="today-preview"><div class="today-generating"><span class="today-spinner"></span><span>正在提取今天的配色…</span></div></div>
-      <div class="today-colors" hidden>${[['skin','肤色'],['hair','发色'],['outer','外套'],['inner','内搭'],['trousers','裤装']].map(([key,label])=>`<label><input type="color" data-color="${key}" aria-label="调整${label}"><span>${label}</span></label>`).join('')}</div>
-      <p class="today-color-note">取色有偏差？点击色块，微调一下。</p>
+      <div class="today-colors" hidden></div>
+      <p class="today-color-note">点击色块，微调识别颜色的深浅。</p>
     </section>
     <p class="today-feedback" role="status" aria-live="polite"></p><button class="today-primary">打开摄像头</button><button class="today-back" hidden>返回照片</button>
     <input class="today-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
@@ -34,6 +35,9 @@ export function mountTodayAvatar(parent,{compact=false,onOpen=()=>{},onApply=()=
   document.body.append(dialog);
   const $=selector=>dialog.querySelector(selector),video=$('video'),primary=$('.today-primary'),feedback=$('.today-feedback');
   let state='empty',revision=0,photoCanvas=null,appearance=null,preview=null,opener;
+  const colorEditor=mountColorEditor($('.today-colors'),(key,color)=>{
+    if(state!=='ready'||!appearance)return;appearance.colors[key]=color;feedback.textContent='';preview?.set(appearance);
+  });
   const camera=createCameraSession(navigator.mediaDevices,()=>{video.srcObject=null;if(dialog.open){render('empty');feedback.textContent='摄像头已断开，请重新打开或选择照片。';}});
   function stopCamera(){camera.stop();video.srcObject=null;}
   function cancelWork(){revision++;stopCamera();}
@@ -50,7 +54,7 @@ export function mountTodayAvatar(parent,{compact=false,onOpen=()=>{},onApply=()=
     $('.today-generating').hidden=next!=='generating';$('.today-colors').hidden=!['ready','applying'].includes(next);
     $('.today-color-note').hidden=next==='generating';$('.today-back').hidden=!second;
     $('.today-back').disabled=next==='applying';$('.today-close').disabled=next==='applying';
-    dialog.querySelectorAll('[data-color]').forEach(input=>input.disabled=next==='applying');primary.disabled=busy;
+    colorEditor.setDisabled(next==='applying');primary.disabled=busy;
     primary.textContent={empty:'打开摄像头',starting:'等待相机授权…',live:'拍下今天',loading:'正在读取照片…',photo:'下一步，看看小人',generating:'正在取色…',ready:'应用到桌宠',applying:'正在应用…'}[next];
   }
   function setPhoto(source,{mirror=false}={}){
@@ -86,7 +90,7 @@ export function mountTodayAvatar(parent,{compact=false,onOpen=()=>{},onApply=()=
       const {createTodayPreview}=await import('./today-preview.js');if(current!==revision||!dialog.open)return;
       const pixels=photoCanvas.getContext('2d').getImageData(0,0,512,512);appearance={version:2,day:localDay(),colors:samplePhotoColors(pixels)};
       preview=createTodayPreview($('.today-preview'),appearance);
-      for(const input of dialog.querySelectorAll('[data-color]'))input.value=appearance.colors[input.dataset.color];
+      colorEditor.set(appearance.colors);
       render('ready');feedback.textContent='';primary.focus();
     }catch{clearPreview();if(current===revision&&dialog.open){render('photo');feedback.textContent='小人预览未能加载，请重试。';}}
   }
@@ -98,7 +102,6 @@ export function mountTodayAvatar(parent,{compact=false,onOpen=()=>{},onApply=()=
     try{await onApply({...appearance,day:localDay()});entry.querySelector('span').textContent='今天的配色 · 已应用';dialog.close();}
     catch(error){render('ready');feedback.textContent=error.message||'应用失败，请重试。';}
   };
-  for(const input of dialog.querySelectorAll('[data-color]'))input.oninput=()=>{if(state!=='ready')return;appearance.colors[input.dataset.color]=input.value;preview.set(appearance);};
   $('.today-back').onclick=()=>{cancelWork();clearPreview();render('photo');feedback.textContent='可以继续使用这张照片，也可以重拍。';primary.focus();};
   $('.today-retake').onclick=startCamera;$('.today-upload').onclick=()=>$('.today-file').click();
   $('.today-file').onchange=event=>{chooseFile(event.target.files[0]);event.target.value='';};

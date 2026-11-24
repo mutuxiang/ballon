@@ -12,9 +12,11 @@ import {createGameExpressions} from './game-expression.js';
 import {applyExerciseMove,updateExerciseTurn} from './game-motion.js';
 import {hazardRotation,loadAtlas} from './game-art.js';
 import {createPoseBackdrop} from './pose-backdrop.js';
+import {mountSkinUnlockProgress} from './skin-unlocks.js';
 import './game.css';
 
 const $=s=>document.querySelector(s), game=new WorkGame();
+const skinProgress=mountSkinUnlockProgress();
 const SIDE_CUES={left:{paper:'#e2edf5',ink:'#426b91'},right:{paper:'#ffead5',ink:'#a35b2c'}};
 const scene=new THREE.Scene(), renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -165,7 +167,7 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
       if(ev.type==='judge'){judgment=ev.text;judgmentQuality=ev.quality;judgmentTime=.7;}
       if(ev.type==='action'){lastMove=ev.action;moveFlash=.4;applyExerciseMove(simulation,character,ev.action,ev.side);}
 
-      if(ev.type==='step'){for(let i=12;i<25;i++)simulation.nodes[i].old.x-=(ev.side==='left'?-.003:.003);}
+      if(ev.type==='step'){const time=performance.now()/1000;skinProgress.record(ev.side,true,time);skinProgress.record(ev.side,false,time);for(let i=12;i<25;i++)simulation.nodes[i].old.x-=(ev.side==='left'?-.003:.003);}
       if(ev.type==='hit'){hitFlash=.8;puff(ev.x,ev.y);}
       if(ev.type==='barrage-warning'){release();judgment='攻击大爆发 · 准备双脚';judgmentQuality='warning';judgmentTime=2;}
       if(ev.type==='barrage-miss'){judgment='没关系，继续下一拍';judgmentQuality='miss';judgmentTime=1.5;}

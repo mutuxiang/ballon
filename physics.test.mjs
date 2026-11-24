@@ -26,7 +26,7 @@ for(const state of ['high','none','low','high']){
       for(const {mesh,rest} of sim.meshes.filter(o=>o.mesh.userData.armSign)){
         const out=mesh.geometry.attributes.position;
         for(let v=0;v<32;v++){
-          const expected=sim.bodyPosition(rest[v*3],rest[v*3+1],rest[v*3+2]);expected.y=Math.max(.025,expected.y);
+          const expected=sim.bodyPosition(rest[v*3],rest[v*3+1],rest[v*3+2]);sim.renderPosition(expected,rest[v*3+1]);
           assert.ok(expected.distanceTo(new Vector3().fromBufferAttribute(out,v))<1e-5,'Entire root ring must stay attached during deflation');
         }
         for(const value of out.array)assert.ok(Number.isFinite(value),'Arm deformation must remain finite');
@@ -90,3 +90,27 @@ for(const direction of [-1,1]){
   assert.equal(dodging.dodgeMotion,null,'The dodge must finish and release the solver');
   assert.ok(dodging.nodes[24].p.y>4,'The body must recover its upright pose');
 }
+
+// Regress the mid-air self-contact kick, sustained twitching and recovery from
+// different fall directions; the previous dynamic exclusion fails these seeds.
+for(const seed of [1,2,3,23,99,4721]){
+  const falling=new AirPhysics(new Group(),{seed,depthMotion:.32});
+  for(let i=0;i<400;i++)falling.step(1/120);
+  falling.setState('none');let upwardKick=0,restMotion=0;
+  for(let i=0;i<1200;i++){
+    const before=falling.nodes.map(n=>n.p.clone());falling.step(1/120);
+    if(i>120&&i<450&&falling.nodes[24].p.y>.8)upwardKick=Math.max(upwardKick,falling.nodes[24].p.y-before[24].y);
+    if(i>1000)restMotion=Math.max(restMotion,...falling.nodes.map((n,j)=>n.p.distanceTo(before[j])));
+  }
+  assert.ok(upwardKick<.015,`Seed ${seed}: deflation must not kick the falling head upward`);
+  assert.ok(restMotion<.002,`Seed ${seed}: resting cloth must not twitch`);
+  const visible=falling.renderPosition(new Vector3(0,.4,0),5);
+  assert.ok(visible.y<.13,'Empty cloth should flatten close to the floor without moving solver nodes');
+  for(const state of ['low','high']){
+    falling.setState(state);for(let i=0;i<720;i++)falling.step(1/120);
+    assert.ok(falling.nodes[24].p.y>4,`Seed ${seed}: ${state} must recover from the collapsed pose`);
+  }
+  const inflated=falling.renderPosition(new Vector3(0,.4,0),5);
+  assert.ok(Math.abs(inflated.y-.4)<1e-6,'Inflated geometry must retain its silhouette');
+}
+console.log('Deflation contact, render flattening and six-seed recovery checks passed');

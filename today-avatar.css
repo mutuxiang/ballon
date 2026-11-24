@@ -37,3 +37,18 @@
 .today-dialog h2:after{content:'';position:absolute;bottom:0;left:calc(50% - 27px);width:54px;height:6px;border-radius:4px;background:var(--lime);transform:rotate(-3deg)}
 
 .photo-page .today-dialog{height:100dvh;overflow:hidden}
+/* Keep the original preview and five swatches; a small palette opens on demand. */
+.today-dialog .today-colors{display:block;position:relative;margin:16px 0 0}
+.today-dialog .today-parts{display:flex;justify-content:center;align-items:center;gap:18px}
+.today-dialog .today-parts button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;min-width:42px;border:0;background:none;font-size:12px;line-height:1.4}
+.today-parts i{display:block;width:34px;height:34px;border:1.5px solid var(--ink);border-radius:50%}
+.today-parts button[aria-expanded=true] i{outline:2px solid #629f91;outline-offset:3px}
+.today-color-popover{position:absolute;z-index:5;top:calc(100% + 10px);left:50%;transform:translateX(-50%);width:280px;max-width:calc(100vw - 40px);padding:14px;background:var(--paper);border:1.5px solid var(--ink);border-radius:13px;box-shadow:3px 3px 0 #22211e24}
+.today-color-popover.is-above{top:auto;bottom:calc(100% + 10px)}
+.today-mixer-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}.today-mixer-heading strong{font-size:14px}
+.today-dialog .today-color-reset{padding:3px 0;border:0;border-bottom:1px solid currentColor;border-radius:0;background:none;font-size:12px;color:#526557}
+.today-dialog .today-presets{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}
+.today-dialog .today-presets button{position:relative;min-width:0;height:26px;padding:0;border:1px solid #22211e60;border-radius:6px}
+.today-presets button[aria-pressed=true]{outline:2px solid var(--ink);outline-offset:2px}.today-presets button[aria-pressed=true]::after{content:'✓';position:absolute;right:-4px;bottom:-5px;width:14px;height:14px;font-size:10px;line-height:12px;text-align:center;border:1px solid var(--ink);border-radius:50%;background:var(--paper);color:var(--ink)}
+@media(max-width:400px){.today-dialog .today-parts{gap:11px}}
+.today-tone-note{font-size:11px;line-height:1.5;color:#68685b;margin:10px 0 0}

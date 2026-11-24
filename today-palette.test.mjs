@@ -1,10 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {samplePhotoColors,rgbToHsl,normalizeAppearance,localDay,APPEARANCE_KEY,DEFAULT_SKIN} from './today-palette.js';
+import {samplePhotoColors,rgbToHsl,normalizeAppearance,localDay,APPEARANCE_KEY,DEFAULT_SKIN,recognizedColorVariants} from './today-palette.js';
 import {createTodayAppearance,mountStoredAppearance} from './today-appearance.js';
 import {createDancer} from './model.mjs';
 const appearance={version:2,day:localDay(),colors:{skin:'#deb08c',hair:'#4d2c24',outer:'#286cc1',inner:'#e9c3a1',trousers:'#244366'}};
+
+test('color suggestions stay in the detected hue family and keep the original reference',()=>{
+  const toRgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  for(const original of ['#286CC1','#B67B50','#629FA1','#000000','#FFFFFF','#808080']){
+    const variants=recognizedColorVariants(original),base=rgbToHsl(toRgb(original));
+    assert.equal(variants.filter(([name,color])=>name==='识别原色'&&color===original).length,1);
+    assert.equal(new Set(variants.map(([,color])=>color)).size,variants.length);
+    const lightness=variants.map(([,color])=>rgbToHsl(toRgb(color))[2]);
+    assert.deepEqual(lightness,[...lightness].sort((a,b)=>a-b));
+    for(const [,color] of variants){
+      const [h,s]=rgbToHsl(toRgb(color));
+      if(base[1]===0)assert.equal(s,0);else assert.ok(Math.min(Math.abs(h-base[0]),1-Math.abs(h-base[0]))<.015);
+    }
+  }
+  assert.notDeepEqual(recognizedColorVariants('#286CC1'),recognizedColorVariants('#B67B50'));
+});
 const rgb=hex=>hex.slice(1).match(/../g).map(c=>parseInt(c,16));
 function fixture(outer,inner=outer){const width=100,height=100,data=new Uint8ClampedArray(width*height*4);for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const color=y<25?[77,44,36]:y<60?[222,176,140]:x>=45&&x<55?inner:outer;data.set([...color,255],(y*width+x)*4);

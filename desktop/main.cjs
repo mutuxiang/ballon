@@ -96,7 +96,7 @@ app.whenReady().then(()=>{
   uIOhook.start();
   const menuController=require('./pet-menu-window.cjs').createPetMenuWindow({
     BrowserWindow,ipcMain,screen,parent:win,
-    getState:()=>({themes:options.themes||[],theme:options.theme||'none',scale:petScale}),
+    getState:()=>({themes:options.themes||[],theme:options.theme||'none',scale:petScale,unlocks:options.unlocks||[]}),
     onAction:async(action,value)=>{
       if(action==='exercise'){if(focusActive){endFocus();send('focus-end');}openGame();}
       else if(action==='custom')photoController.open();

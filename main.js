@@ -3,6 +3,8 @@ import {createFocusManga} from './focus-manga.js';
 import {createThemeSkins,THEMES} from './theme-skins.js';
 import {mountThemePicker} from './theme-picker.js';
 import {mountPedals} from './pedals.js';
+import {mountPetTasks} from './pet-tasks.js';
+import {mountSkinUnlockProgress} from './skin-unlocks.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createDancer} from './model.mjs';
@@ -143,13 +145,25 @@ for(let i=0;i<28;i++){const a=i/28*Math.PI*2,r=.85+(i%3)*.05,R=r+.18+(i%4)*.09;h
 haloGeometry.setAttribute('position',new THREE.Float32BufferAttribute(haloPositions,3));
 const focusSprite=new THREE.LineSegments(haloGeometry,new THREE.LineBasicMaterial({color:0x242424}));focusSprite.visible=false;scene.add(focusSprite);
 const pedals=mountPedals({selectState,simulation,camera});
+const skinProgress=mountSkinUnlockProgress();
+skinProgress.subscribe(state=>pedals.setTaskActive(Boolean(state.task)));
+if(petMode)mountPetTasks(skinProgress,{anchor:()=>{
+  const layouts={none:[0,0],fishing:[-3.8,4.7],breathe:[-.8,5.1],fresh:[-1.8,5],tea:[-3,4.8],wind:[-3.4,5.4]};
+  const [offset,minHeight]=layouts[themeSkins.active]||layouts.none;
+  const p=simulation.nodes[24].p.clone();
+  if(themeSkins.active!=='none'){p.x=offset;p.y=Math.max(p.y,minHeight);}
+  p.project(camera);
+  return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};
+}});
+addEventListener('air-pedal',event=>skinProgress.record(event.detail.side,event.detail.down,performance.now()/1000));
 if(petMode&&window.desktopPet){
   window.desktopPet.onAction(({type,value})=>{
     if(type!=='today-appearance')return;
     try{applyTodayAvatar(value.appearance);window.desktopPet.appearanceApplied(value.id);}
     catch(error){window.desktopPet.appearanceApplied(value.id,error.message);}
   });
-  themeSkins.subscribe(()=>window.desktopPet.configure({scale:petScale,theme:themeSkins.active,themes:THEMES.map(s=>({id:s.id,name:s.name}))}));
+  const publishPetOptions=()=>window.desktopPet.configure({scale:petScale,theme:themeSkins.active,themes:THEMES.map(s=>({id:s.id,name:s.name})),unlocks:skinProgress.slots});
+  themeSkins.subscribe(publishPetOptions);skinProgress.subscribe(publishPetOptions);
   window.desktopPet.onAction(({type,value})=>{if(type==='ink')focusSprite.material.color.set(value?0xf5f5ed:0x242424);if(type==='focus-end')pedals.cancelSuper();if(type==='pedal')pedals.set(value.side,value.down);if(type==='pedal-reset')pedals.reset();if(type==='air')selectState(value);if(type==='theme')themePicker.select(value);if(type==='pause')play.click();});
   window.desktopPet.onAction(({type,value})=>{
     if(type==='prop-nudge')themeSkins.nudge();

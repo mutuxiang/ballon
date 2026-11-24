@@ -81,8 +81,11 @@ export class AirPhysics {
       // Nonadjacent tube sections retain a finite thickness when crumpled.
       for(let i=3;i<=24;i++)for(let j=0;j<i-2;j++){
         const a=ns[j],b=ns[i],min=this.bodyRadius(a)+this.bodyRadius(b)+.035;
-        if((i-j)*4.9/24<min*1.15)continue;
-        this.repelSegment(b,a,ns[j+1],min);
+        // Deflating adjacent material must not suddenly become a collision pair
+        // as its radius crosses the old pressure-dependent exclusion threshold.
+        if(this.target>0&&(i-j)*4.9/24<min*1.15)continue;
+        const contactRadius=this.target===0?Math.min(min,(i-j-1)*4.9/24*.85):min;
+        this.repelSegment(b,a,ns[j+1],contactRadius);
       }
       this.environment?.solveBody(this);
     }
@@ -149,6 +152,16 @@ export class AirPhysics {
     const f=this.sample(y),w=T.MathUtils.smoothstep(y,.64,1.2);
     return f.c.addScaledVector(f.n,x*(1-w*(1-f.p)*.48)).addScaledVector(f.b,z*(1-w*(1-f.p)*.72));
   }
+  renderPosition(position,restY){
+    // Render-only cloth flattening near the floor. Keep the solver, pinned cuff,
+    // inflated silhouette and collision response independent of this appearance.
+    const k=clamp((restY-.64)/4.9*24,0,24),i=Math.min(23,Math.floor(k));
+    const pressure=T.MathUtils.lerp(this.nodes[i].pressure,this.nodes[i+1].pressure,k-i);
+    const flat=(1-T.MathUtils.smoothstep(pressure,0,.3))*T.MathUtils.smoothstep(restY,.64,1.2);
+    position.y*=1-.7*flat*(1-T.MathUtils.smoothstep(position.y,.5,1.5));
+    position.y=Math.max(.025,position.y);
+    return position;
+  }
   deform(){
     for(const {mesh,rest} of this.meshes){const out=mesh.geometry.attributes.position;
       for(let i=0;i<out.count;i++){
@@ -169,7 +182,7 @@ export class AirPhysics {
         }else{
           pos=this.bodyPosition(x,y,z);
         }
-        pos.y=Math.max(.025,pos.y);out.setXYZ(i,pos.x,pos.y,pos.z);
+        this.renderPosition(pos,y);out.setXYZ(i,pos.x,pos.y,pos.z);
       }
       out.needsUpdate=true;mesh.geometry.computeVertexNormals();
     }
