@@ -22,6 +22,17 @@ app.whenReady().then(async()=>{
     await sleep(3000);
     const pet=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));
     assert.ok(pet,'pet loaded');
+    if(process.argv.includes('--scoreboard')){
+      const game=new BrowserWindow({width:1120,height:760,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
+      await game.loadFile(path.resolve(__dirname,'../dist/play.html'));await sleep(1200);await game.webContents.executeJavaScript('document.fonts.ready');
+      for(const width of [1120,420]){
+        game.setSize(width,760);await sleep(300);
+        const info=await game.webContents.executeJavaScript(`(()=>{const el=document.querySelector('.scoreboard'),r=el.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth,font:getComputedStyle(document.querySelector('#score')).fontFamily,loaded:document.fonts.check('27px PuffoScoreComic')};})()`);
+        assert.ok(info.left>=0&&info.right<=info.width);assert.ok(info.loaded);assert.ok(info.font.includes('PuffoScoreComic'));
+        fs.writeFileSync(path.join(outputDir,'scoreboard-'+width+'.png'),(await game.webContents.capturePage()).toPNG());console.log(JSON.stringify(info));
+      }
+      clearTimeout(timeout);app.quit();return;
+    }
     if(process.argv.includes('--motion')){
       await pet.webContents.executeJavaScript("window.dancer.selectTheme('none');document.querySelector('#play').click()");
       const states=[];

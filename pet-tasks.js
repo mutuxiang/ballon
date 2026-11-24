@@ -3,7 +3,7 @@ export function mountPetTasks(progress,{anchor}){
   const bubble=document.createElement('aside');bubble.className='pet-task-bubble';bubble.hidden=true;bubble.setAttribute('aria-label','小人的运动任务');
   bubble.innerHTML=`<div class="pet-task-intro"><p class="pet-task-message" role="status" aria-live="polite">完成任务，解锁新皮肤</p></div>
     <section class="pet-task-work"><div class="pet-task-row"><span class="pet-task-action"></span><span class="pet-task-reward"></span></div>
-      <div class="pet-task-numbers"><strong class="pet-task-done"></strong><span class="pet-task-total"></span><span class="pet-task-remaining"></span></div>
+      <div class="pet-task-numbers"><strong class="pet-task-done"></strong><span class="pet-task-total"></span></div>
       <progress class="pet-task-progress" aria-label="当前任务完成进度"></progress></section>
     <footer><div class="pet-task-row"><span>新皮肤解锁</span><span class="pet-task-xp"></span></div><progress class="pet-task-unlock" max="100" value="0" aria-label="皮肤解锁经验"></progress></footer>`;
   document.body.append(bubble);
@@ -20,7 +20,6 @@ export function mountPetTasks(progress,{anchor}){
       $('.pet-task-reward').textContent=(completed?'已获得 +':'完成 +')+task.reward+' 经验';
       $('.pet-task-done').textContent=current;
       $('.pet-task-total').textContent='/ '+task.target+' '+task.unit+'已完成';
-      $('.pet-task-remaining').textContent=completed?'任务完成':'还需 '+Math.ceil(task.target-task.current)+' '+task.unit;
       $('.pet-task-progress').max=task.target;$('.pet-task-progress').value=current;
     }
     if(completed)show(state.xp>=next?'新皮肤解锁资格到手！':'任务完成，经验到账！');
